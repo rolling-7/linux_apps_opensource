@@ -96,10 +96,10 @@ set(install_dir "${PROJECT_BINARY_DIR}/release/dpkg/")
 
 set(outer_loop_exit FALSE)
 
-if (${PROJECT_BUILD} MATCHES "350")
-    set(PROJECT_DEB_CONTROL_PATH "${PROJECT_BINARY_DIR}/../no_ma_script")
-else ()
+if (${PROJECT_BUILD} MATCHES "101")
     set(PROJECT_DEB_CONTROL_PATH "${PROJECT_BINARY_DIR}/../script")
+else ()
+    set(PROJECT_DEB_CONTROL_PATH "${PROJECT_BINARY_DIR}/../no_ma_script")
 endif ()
 
 set(PROJECT_DEB_CONTROL_PREINST "${PROJECT_DEB_CONTROL_PATH}/preinst")
@@ -245,7 +245,6 @@ foreach(SUBDIRS ${SUBDIRECTORIES})
     endif()
 endforeach()
 
-# set(CPACK_PROJECT_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/CPackConfig_qualcomm_rw135_lenovo.cmake")
 
 include(CPack)
 

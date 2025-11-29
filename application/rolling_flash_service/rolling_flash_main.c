@@ -1,0 +1,206 @@
+/**
+ * Copyright (C) 2023 Rolling Corporation.  All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version
+ * 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * @file rolling_flash_main.c
+ * @author qifeng.liu@rollingwireless.com (liuqifeng)
+ * @brief rolling flash main source file
+ * @version 1.0
+ * @date 2025-11-23
+ *
+ *
+ **/
+
+#include "rolling_flash_main.h"
+
+
+extern gboolean sim_status_handler(RollingGdbusHelper *object, const char *value, gpointer userdata);
+extern gboolean fastboot_status_handler(RollingGdbusHelper *object, const char *value, gpointer userdata);
+
+
+
+static void print_usage(void)
+{
+    extern const char *__progname;
+    fprintf(stderr,
+            "%s -v -d -l <Level> ...\n",
+            __progname);
+    fprintf(stderr,
+            " -v                     --force                      print  version\n"
+            " -d <debug level:xx>    --debug <debug:num>          LOG Debug\n"
+            " -l <id:file path>      --Level <Level:string>       Level for bin\n"
+            "\n"
+            "Example: \n"
+            "./rolling_flash -v -d -l 7\n");
+}
+void trigger_rules_activation()
+{
+	FILE *zip_file = NULL;
+	int ret = 0;
+
+	ROLLING_LOG_INFO("entry");
+
+	zip_file = fopen(NEW_PACKAGE_PATH, "r");
+	if (zip_file != NULL)
+	{
+		ROLLING_LOG_INFO("first install need to reload rules");
+
+		ret = system("udevadm control --reload-rules");
+		if (ret)
+		{
+			ROLLING_LOG_ERROR("reload rules failed");
+		}
+
+		ret = system("udevadm trigger");
+		if (ret)
+		{
+			ROLLING_LOG_ERROR("trigger failed");
+		}
+
+		fclose(zip_file);
+	}
+
+	return;
+}
+void rolling_check_imei_run()
+{
+    pthread_t ptid;
+    pthread_create(&ptid, NULL, &check_imei_change, NULL);
+    ROLLING_LOG_INFO("[%s] check imei thread create!\n", __func__);
+}
+void rolling_monitor_package_run()
+{
+    pthread_t ptid;
+    pthread_create(&ptid, NULL, &rolling_monitor_package, NULL);
+    ROLLING_LOG_INFO("monitor package create\n");
+}
+void rolling_firmware_recovery_run()
+{
+    pthread_t ptid;
+    pthread_create(&ptid, NULL, &rolling_recovery_monitor, NULL);
+    ROLLING_LOG_INFO("[%s] Recovery thread create!\n", __func__);
+}
+void open_log(int argc, char *argv[])
+{
+    log_init();
+
+    ROLLING_LOG_INFO("FW Flash service entry");
+    openlog("FWFlashService", LOG_CONS | LOG_PID, LOG_USER);
+    ROLLING_LOG_INFO("rolling_flash_service version:%s", FLASH_VERSION_STRING);
+    log_set(argc, argv);
+}
+int main(int argc, char *argv[])
+{
+    flash_info checkInfo;
+    GDBusConnection *conn = NULL;
+    GError *connerror = NULL;
+    GError *proxyerror = NULL;
+    bool new_pkg = FALSE;
+    bool need_flash_flag = FALSE;
+    bool normal_port = FALSE;
+    int ret;
+    char port_status[32] = {0};
+    e_error_code status = UNKNOWNPROJECT;
+    FILE *g_file = NULL;
+    int i;
+
+    open_log(argc, argv);
+
+    trigger_rules_activation();
+    append_config_param();
+
+    config_file_init(g_file, &checkInfo);
+
+    ret = g_debus_init();
+    if (ret == GDEBUG_INIT_FAILED)
+    {
+        goto FINISH;
+    }
+
+    /* create monitor package thread */
+    rolling_monitor_package_run();
+    /* create recovery thread */
+    rolling_firmware_recovery_run();
+    gMainloop = g_main_loop_new(NULL, FALSE);
+
+    new_pkg = check_new_package();
+    if (FALSE == new_pkg)
+    {
+        if (0 != access(FWPACKAGE_PATH, F_OK))
+        {
+            ROLLING_LOG_INFO("=================================================================\n");
+            ROLLING_LOG_INFO("********Please ensure that fw package has been installed.********\n");
+            ROLLING_LOG_INFO("********Obtain the fw package from the corresponding OEM.********\n");
+            ROLLING_LOG_INFO("=================================================================\n");
+        }
+    }
+
+    for (i = 0; i < 15; i++)
+    {
+        status = check_port_state(port_status);
+        if (ERROR == status)
+        {
+            ROLLING_LOG_ERROR("get port state failed");
+            g_usleep(1000 * 1000 * 2);
+            continue;
+        }
+        else
+        {
+            if (strstr(port_status, "normalport") == NULL)
+            {
+                ROLLING_LOG_INFO("port state is abnormal, wait...");
+                g_usleep(1000 * 1000 * 2);
+                continue;
+            }
+            else
+            {
+                normal_port = TRUE;
+                ROLLING_LOG_INFO("port state is normal, start FW flash flow");
+                break;
+            }
+        }
+    }
+
+    if (TRUE == normal_port)
+    {
+        ROLLING_LOG_INFO("port state is normal, start FW flash flow");
+
+        if (new_pkg == TRUE)
+        {
+            fw_update();
+        }
+        else
+        {
+            need_flash_flag = check_flash_flag();
+            if (need_flash_flag == TRUE)
+            {
+                fw_update();
+            }
+        }
+    }
+
+    g_signal_connect(proxy, "simcard-change", G_CALLBACK(sim_status_handler),NULL);
+    g_signal_connect(proxy, "cellular-state",G_CALLBACK(modem_status_handler),NULL);
+    g_signal_connect(proxy,"fastboot-status",G_CALLBACK(fastboot_status_handler),NULL);
+
+    rolling_check_imei_run();
+
+    g_main_loop_run(gMainloop);
+    g_object_unref(proxy);
+
+FINISH:
+    closelog();
+    if (g_file != NULL)
+    {
+        fclose(g_file);
+    }
+
+    return 0;
+}

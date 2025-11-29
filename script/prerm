@@ -1,0 +1,10 @@
+#!/bin/bash
+#remove vid:pid link file befor packge remove
+# rm -rf /usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d/*:*
+path="/lib/systemd/system/"
+#stop service
+
+if [[ -f ${path}rolling_config.service && -f ${path}rolling_flash.service && -f ${path}rolling_helper.service ]];then
+    systemctl stop rolling_config.service rolling_flash.service rolling_helper.service
+    systemctl disable rolling_config.service rolling_flash.service rolling_helper.service
+fi

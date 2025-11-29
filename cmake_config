@@ -9,7 +9,7 @@ parse_ini() {
     | grep -vE "^\[$SECTION\]|^\s*$" | awk -F'=' 'NR==1{print $2}' | tr -d '\n'
 }
 
-# for SECTION in "lenovo" "hp" "dell"; do
+# for SECTION in "lenovo"; do
 for SECTION in "${3}"; do
     BUILD_LIB=$(parse_ini ${1}/${2}_config "$SECTION" BUILD_LIB)
     BUILD_DEB=$(parse_ini ${1}/${2}_config "$SECTION" BUILD_DEB)

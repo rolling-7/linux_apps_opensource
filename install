@@ -105,9 +105,6 @@ function copy_file_to_deb_directory()
             if [ "lenovo" == "${OEM_BUILD}" ]; then
                 echo "Copying libmodemauth.so.1.0 for Lenovo OEM"
                 cp -raf ${MA_SERVICE_PATH_APP_DIR}/libmodemauth.so.1.0 ${DEB_MA_SERVICE_DIR}
-            elif [ "dell" == "${OEM_BUILD}" ]; then
-                echo "Copying rolling_ma for Dell OEM"
-                cp -raf ${MA_SERVICE_PATH_APP_PATH} ${DEB_MA_SERVICE_DIR}
             else
                 # 默认复制rolling_ma
                 cp -raf ${MA_SERVICE_PATH_APP_PATH} ${DEB_MA_SERVICE_DIR}

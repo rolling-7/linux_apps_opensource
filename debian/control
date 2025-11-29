@@ -1,0 +1,25 @@
+Source: linux-apps
+Section: net
+Priority: optional
+Maintainer: yanfuqiang
+Build-Depends: 
+ cmake, 
+ libmbim-glib-dev,
+ debhelper-compat (= 12),
+ dh-modaliases,
+ build-essential,
+ pkg-config,
+ libglib2.0-dev,
+ libxml2-dev,
+ libudev-dev,
+ libdbus-1-dev,
+ libmm-glib-dev
+Standards-Version: 4.5.0
+#Homepage: <insert the upstream URL, if relevant>
+
+Package: linux-apps
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends},modemmanager
+XB-Modaliases: ${modaliases}
+Description: WWAN Linux apps.
+

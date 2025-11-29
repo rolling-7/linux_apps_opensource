@@ -1,0 +1,40 @@
+#!/bin/bash
+
+#not first insatll need stop service first
+path="/lib/systemd/system/"
+if [[ -f ${path}rolling_config.service   &&  -f ${path}rolling_flash.service  &&   -f ${path}rolling_helper.service ]];then
+  systemctl stop rolling_config.service rolling_flash.service rolling_helper.service
+fi
+flash_srv_path="/opt/rolling/rolling_flash_service/FwFlashSrv"
+
+if [[ -f ${flash_srv_path} ]]; then
+    rm -rf ${flash_srv_path}
+fi
+
+
+if [ -d "/usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d" ]; then
+    rm -rf /usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d
+elif [ -d "/usr/lib64/ModemManager/fcc-unlock.d" ]; then
+    rm -rf /usr/lib64/ModemManager/fcc-unlock.d
+fi
+
+SERVICE_FILES=(
+    "/lib/systemd/system/ModemManager.service"
+    "/usr/lib/systemd/system/ModemManager.service"
+)
+PARAM="--test-low-power-suspend-resume"
+
+for SERVICE_FILE in "${SERVICE_FILES[@]}"; do
+    if [[ -f "$SERVICE_FILE" ]]; then
+        if grep -q -- "$PARAM" "$SERVICE_FILE"; then
+            sed -i "s/$PARAM//g" "$SERVICE_FILE"
+            echo "Removed '$PARAM' from $SERVICE_FILE"
+
+            systemctl daemon-reload
+            systemctl restart ModemManager.service
+            echo "will restart ModemManager"
+        fi
+    else
+        echo "service $SERVICE_FILE not exit"
+    fi
+done

@@ -1,0 +1,43 @@
+#!/bin/bash
+set -e
+
+# Add MA Service script, create link file
+if [ -d "/usr/lib/x86_64-linux-gnu/ModemManager" ]; then
+    if [ -d "/opt/rolling/rolling_ma_service/fcc-unlock.d" ]; then
+        cp -raf /opt/rolling/rolling_ma_service/fcc-unlock.d /usr/lib/x86_64-linux-gnu/ModemManager/
+        chown -R root:root /usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d
+        chmod 755 -R /usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d
+    fi
+elif [ -d "/usr/lib64/ModemManager" ]; then
+    if [ -d "/opt/rolling/rolling_ma_service/fcc-unlock.d" ]; then
+        cp -raf /opt/rolling/rolling_ma_service/fcc-unlock.d /usr/lib64/ModemManager/
+        chown -R root:root /usr/lib64/ModemManager/fcc-unlock.d
+        chmod 755 -R /usr/lib64/ModemManager/fcc-unlock.d
+    fi
+else
+    echo "No ModemManager directory found!"
+fi
+
+if [ -d "/opt/rolling/rolling_config_service" ]; then
+    mkdir -p /etc/opt/rolling/config_file/rolling_config_service/
+    mv /opt/rolling/rolling_config_service/*.ini /etc/opt/rolling/config_file/rolling_config_service/
+fi
+
+if [ -d "/opt/rolling/rolling_flash_service" ]; then
+    mkdir -p /etc/opt/rolling/config_file/rolling_flash_service/
+    mv /opt/rolling/rolling_flash_service/*.ini /etc/opt/rolling/config_file/rolling_flash_service/
+fi
+
+mkdir -p /etc/opt/rolling/run
+mkdir -p /etc/opt/rolling/rolling_fw_pkg/
+
+function start_service()
+{
+    path="/lib/systemd/system/"
+    if [[ -f ${path}rolling_config.service && -f ${path}rolling_flash.service && -f ${path}rolling_helper.service ]]; then
+        systemctl enable rolling_config.service rolling_flash.service rolling_helper.service
+        systemctl start rolling_helper.service rolling_config.service rolling_flash.service
+    fi
+}
+
+start_service
