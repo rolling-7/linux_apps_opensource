@@ -106,8 +106,43 @@ endif()
 execute_process(COMMAND mkdir -p ${PROJECT_BINARY_DIR})
 execute_process(COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/config_set/${file_path}/rwwwanConfig.ini ${PROJECT_BINARY_DIR})
 
+# 初始化build_by_lib变量
+set(build_by_lib 0)
+
+# 检查BUILD_BY_LIB参数，将其转换为build_by_lib变量
+if(DEFINED BUILD_BY_LIB)
+    set(build_by_lib ${BUILD_BY_LIB})
+    message(STATUS "BUILD_BY_LIB parameter: ${BUILD_BY_LIB}")
+endif()
+
+# 当build_by_lib为1时，设置BUILD_LIB为no
+if(build_by_lib)
+    set(BUILD_LIB "no")
+    message(STATUS "Build by lib mode enabled, setting BUILD_LIB=no")
+endif()
+
 # 根据构建模式决定输出目标
-if (${BUILD_LIB} STREQUAL "yes")
+# 优先检查build_by_lib模式，从预构建静态库生成可执行文件
+if(build_by_lib)
+    # 当build_by_lib=1时，跳过源码编译，只从库文件构建
+    message(STATUS "Build by lib mode: using prebuilt static library")
+    # 静态库路径指向binary_deb/common_lib目录下的通用库文件
+    set(STATIC_LIB_PATH "${CMAKE_SOURCE_DIR}/binary_deb/common_lib/librolling_config_service_${CONFIG_VERSION_STRING}.a")
+    message(STATUS "Using static library: ${STATIC_LIB_PATH}")
+    
+    # 创建一个简单的空源文件，用于满足CMake的add_executable要求
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/empty.c "")
+    
+    # 构建通用可执行文件（无论是否指定了特定项目和OEM，都生成相同的可执行文件名）
+    add_executable(rolling_config ${CMAKE_CURRENT_BINARY_DIR}/empty.c)
+    # 链接静态库
+    target_link_libraries(rolling_config
+        ${STATIC_LIB_PATH}
+        ${PROJECT_BINARY_DIR}/../3rd/iniparser/libiniparser.a
+        LibXml2::LibXml2 -ldl -lpthread -lm PkgConfig::deps ${CMAKE_DL_LIBS}
+    )
+    message(STATUS "Building generic executable using library: rolling_config")
+elseif (${BUILD_LIB} STREQUAL "yes")
 	# 构建静态库模式
 	message(STATUS "Building config service as static library")
 	add_library(rolling_config_service_${CONFIG_VERSION_STRING} STATIC ${CONFIG_SOURCES})
@@ -119,28 +154,25 @@ if (${BUILD_LIB} STREQUAL "yes")
 	# 安装静态库
 	install(TARGETS rolling_config_service_${CONFIG_VERSION_STRING} DESTINATION lib)
 	install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION include)
+	
+	# 同时构建可执行文件
+	message(STATUS "Building config service executable in BUILD_LIB mode")
+	add_executable(rolling_config ${CONFIG_SOURCES})
+	target_link_libraries(rolling_config
+		${PROJECT_BINARY_DIR}/../3rd/iniparser/libiniparser.a
+		LibXml2::LibXml2 -ldl -lpthread -lm PkgConfig::deps ${CMAKE_DL_LIBS}
+	)
 else()
 	# 构建可执行文件模式
 	message(STATUS "Building config service as executable")
 	
-	# 检查是否指定了特定项目和OEM
-	if ((NOT ${PROJECT_BUILD} STREQUAL OFF) AND (NOT ${OEM_BUILD} STREQUAL OFF))
-		# 构建特定项目和OEM的可执行文件
-		add_executable(${PROJECT_BUILD}_${OEM_BUILD}_rolling_config ${CONFIG_SOURCES})
-		target_link_libraries(${PROJECT_BUILD}_${OEM_BUILD}_rolling_config
-			${PROJECT_BINARY_DIR}/../3rd/iniparser/libiniparser.a
-			LibXml2::LibXml2 -ldl -lpthread -lm PkgConfig::deps ${CMAKE_DL_LIBS}
-		)
-		message(STATUS "Building specific executable: ${PROJECT_BUILD}_${OEM_BUILD}_rolling_config")
-	else()
-		# 构建通用可执行文件
+	# 构建通用可执行文件（无论是否指定了特定项目和OEM，都生成相同的可执行文件名）
 		add_executable(rolling_config ${CONFIG_SOURCES})
 		target_link_libraries(rolling_config
 			${PROJECT_BINARY_DIR}/../3rd/iniparser/libiniparser.a
 			LibXml2::LibXml2 -ldl -lpthread -lm PkgConfig::deps ${CMAKE_DL_LIBS}
 		)
 		message(STATUS "Building generic executable: rolling_config")
-	endif()
 endif()
 
 # 静态库构建与复制功能 - 与helper_service和flash_service使用完全相同的目录结构和复制路径

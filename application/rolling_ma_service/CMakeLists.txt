@@ -95,6 +95,14 @@ if(OEM_BUILD STREQUAL "lenovo")
         COMMAND cp -raf ${CMAKE_CURRENT_SOURCE_DIR}/libmodemauth.so.1.0 ${lib_output_path}
         VERBATIM
     )
+# Dell OEM 复制操作
+elseif(OEM_BUILD STREQUAL "dell")
+    add_custom_command(
+        TARGET ma_build_lib POST_BUILD
+        COMMAND echo "Copying rolling_ma for Dell OEM"
+        COMMAND cp -raf ${PROJECT_BINARY_DIR}/rolling_ma ${lib_output_path}
+        VERBATIM
+    )
 # 其他OEM类型
 else()
     add_custom_command(

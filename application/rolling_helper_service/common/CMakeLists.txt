@@ -117,6 +117,7 @@ foreach(SUBDIRS ${SUBDIRECTORIES})
 
                             set(common_lib_source_files rolling_helper_basic_func.c rolling_helper_adapter.c 
                             rolling_helper_log.c common_base_func.c generated/rolling-helper-gdbus-generated.c
+                            ${CMAKE_CURRENT_SOURCE_DIR}/../rolling_helper_main.c
                             ${CMAKE_CURRENT_SOURCE_DIR}/../${SUBDIR_M}/rolling_helper_${SUBDIR_M}_common.c
                             ${CMAKE_CURRENT_SOURCE_DIR}/../${SUBDIR_M}/${SUBDIR_N}/rolling_helper_${SUBDIR_N}_common.c
                             ${CMAKE_CURRENT_SOURCE_DIR}/../${SUBDIR_M}/${SUBDIR_N}/${SUBDIR_NAME}/rolling_helper_${SUBDIR_N}_${SUBDIR_NAME}.c
