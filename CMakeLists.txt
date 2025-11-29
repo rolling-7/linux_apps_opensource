@@ -1,17 +1,17 @@
-#/* This library is free software; you can redistribute it and/or modify
+#/* This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU Lesser General Public License as published by
 # * the Free Software Foundation; either version 2 of the License, or
 # * (at your option) any later version.
 # *
-# * This library is distributed in the hope that it will be useful,
+# * This program is distributed in the hope that it will be useful,
 # * but WITHOUT ANY WARRANTY; without even the implied warranty of
 # * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # * GNU Lesser General Public License for more details.
 # *
 # * You should have received a copy of the GNU Lesser General Public License
-# * along with this library. If not, see <http://www.gnu.org/licenses/>.
+# * along with this program. If not, see <http://www.gnu.org/licenses/>.
 # *
-# * Copyright (C) 2025, Rolling Wireless Inc.
+# * Copyright (C) 2025, Rolling Wireless S.a.r.l.
 # */
 
 cmake_minimum_required(VERSION 3.6)
@@ -36,14 +36,35 @@ option(BUILD_DOWN_TOOL "build down tool" "")
 option(BUILD_FLASH "build flash" "")
 option(BUILD_CONFIG "build config" "")
 option(BUILD_MA "build ma" "")
+option(BUILD_BY_LIB "use prebuilt libs" "")
 
 set(build_deb FALSE)
 set(build_rpm FALSE)
+set(build_by_lib 0)
 
-if (${BUILD_DEB} STREQUAL "yes")
-    set(build_deb TRUE)
-elseif (${BUILD_RPM} STREQUAL "yes")
-    set(build_rpm TRUE)
+# 处理BUILD_BY_LIB选项，将其转换为build_by_lib变量
+if (BUILD_BY_LIB)
+    set(build_by_lib ${BUILD_BY_LIB})
+endif()
+
+# 设置默认值
+set(DEFAULT_PROJECT_BUILD "rw101")
+set(DEFAULT_OEM_BUILD "lenovo")
+set(DEFAULT_BUILD_LIB "no")
+set(DEFAULT_BUILD_DEB "yes")
+set(DEFAULT_BUILD_RPM "no")
+set(DEFAULT_BUILD_HELPER "yes")
+set(DEFAULT_BUILD_DOWN_TOOL "yes")
+set(DEFAULT_BUILD_FLASH "yes")
+set(DEFAULT_BUILD_CONFIG "yes")
+set(DEFAULT_BUILD_MA "yes")
+
+# 如果变量为空，使用默认值
+if("${PROJECT_BUILD}" STREQUAL "")
+    set(PROJECT_BUILD ${DEFAULT_PROJECT_BUILD})
+endif()
+if("${OEM_BUILD}" STREQUAL "")
+    set(OEM_BUILD ${DEFAULT_OEM_BUILD})
 endif()
 
 message("start config script!!!")
@@ -51,9 +72,38 @@ execute_process(COMMAND bash ${PROJECT_SOURCE_DIR}/cmake_config
                         ${PROJECT_SOURCE_DIR} ${PROJECT_BUILD} ${OEM_BUILD})
 message("end config script!!!")
 
+# 检查配置文件是否存在
+if(EXISTS ${PROJECT_SOURCE_DIR}/build/${PROJECT_BUILD}_${OEM_BUILD}_config.cmake)
+    include(${PROJECT_SOURCE_DIR}/build/${PROJECT_BUILD}_${OEM_BUILD}_config.cmake)
+endif()
 
-include(${PROJECT_SOURCE_DIR}/build/${PROJECT_BUILD}_${OEM_BUILD}_config.cmake)
+# 设置默认值
+if("${BUILD_LIB}" STREQUAL "")
+    set(BUILD_LIB ${DEFAULT_BUILD_LIB})
+endif()
+if("${BUILD_DEB}" STREQUAL "")
+    set(BUILD_DEB ${DEFAULT_BUILD_DEB})
+endif()
+if("${BUILD_RPM}" STREQUAL "")
+    set(BUILD_RPM ${DEFAULT_BUILD_RPM})
+endif()
+if("${BUILD_HELPER}" STREQUAL "")
+    set(BUILD_HELPER ${DEFAULT_BUILD_HELPER})
+endif()
+if("${BUILD_DOWN_TOOL}" STREQUAL "")
+    set(BUILD_DOWN_TOOL ${DEFAULT_BUILD_DOWN_TOOL})
+endif()
+if("${BUILD_FLASH}" STREQUAL "")
+    set(BUILD_FLASH ${DEFAULT_BUILD_FLASH})
+endif()
+if("${BUILD_CONFIG}" STREQUAL "")
+    set(BUILD_CONFIG ${DEFAULT_BUILD_CONFIG})
+endif()
+if("${BUILD_MA}" STREQUAL "")
+    set(BUILD_MA ${DEFAULT_BUILD_MA})
+endif()
 
+# 处理BUILD_DEB和BUILD_RPM
 if(build_deb)
     set(BUILD_DEB "yes")
     set(BUILD_RPM "no")
@@ -73,7 +123,8 @@ message("build flash: ${BUILD_FLASH}")
 message("build config: ${BUILD_CONFIG}")
 message("build ma: ${BUILD_MA}")
 
-if ((${BUILD_DEB} STREQUAL "yes") AND (${BUILD_RPM} STREQUAL "yes"))
+# 检查是否同时构建deb和rpm
+if("${BUILD_DEB}" STREQUAL "yes" AND "${BUILD_RPM}" STREQUAL "yes")
     message(FATAL_ERROR "Can't build both deb and rpm at the same time!")
 endif()
 
@@ -96,10 +147,10 @@ set(install_dir "${PROJECT_BINARY_DIR}/release/dpkg/")
 
 set(outer_loop_exit FALSE)
 
-if (${PROJECT_BUILD} MATCHES "101")
-    set(PROJECT_DEB_CONTROL_PATH "${PROJECT_BINARY_DIR}/../script")
-else ()
+if (${PROJECT_BUILD} MATCHES "350")
     set(PROJECT_DEB_CONTROL_PATH "${PROJECT_BINARY_DIR}/../no_ma_script")
+else ()
+    set(PROJECT_DEB_CONTROL_PATH "${PROJECT_BINARY_DIR}/../script")
 endif ()
 
 set(PROJECT_DEB_CONTROL_PREINST "${PROJECT_DEB_CONTROL_PATH}/preinst")
@@ -245,6 +296,7 @@ foreach(SUBDIRS ${SUBDIRECTORIES})
     endif()
 endforeach()
 
+# set(CPACK_PROJECT_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/CPackConfig_qualcomm_rw135_lenovo.cmake")
 
 include(CPack)
 

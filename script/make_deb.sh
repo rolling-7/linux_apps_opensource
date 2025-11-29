@@ -9,7 +9,7 @@ oem_list=("lenovo" "generic")
 
 # 手动设置build_by_lib参数，1表示使用库编译，0表示正常编译
 # 用户可以直接修改这里的值来控制编译方式
-build_by_lib=0
+build_by_lib=1
 
 function make_project()
 {
@@ -162,5 +162,5 @@ elif [ "lib" == "$1" ]; then
 else
     echo  -e "para error,for example, you can send cmd to build deb
      \033[1;31m ./make_deb.sh deb rw101 lenovo
-     \033[0;30m or you can send cmd build helper lib 
+     \033[0;30m or you can send cmd build helper lib"
 fi

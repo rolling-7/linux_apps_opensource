@@ -5,7 +5,7 @@ BUILD_DIR=${basedir}/build
 APP_DIR="${BUILD_DIR}/application"
 CONFIG_SERVICE_APP_DIR="${APP_DIR}/rolling_config_service"
 CONFIG_SERVICE_APP_PATH="${APP_DIR}/rolling_config_service/rolling_config*"
-FLASH_SERVICE_APP_PATH="${APP_DIR}/rolling_flash_service/librolling_flash_service_*.a"
+FLASH_SERVICE_APP_PATH="${APP_DIR}/rolling_flash_service/rolling_flash*"
 FLASH_SERVICE_APP_DIR="${APP_DIR}/rolling_flash_service"
 HELPER_SERVICE_APP_PATH="${APP_DIR}/rolling_helper_service/"
 MA_SERVICE_PATH_APP_DIR="${BUILD_DIR}/../application/rolling_ma_service"
@@ -17,13 +17,7 @@ DEB_SOFT_DIR="${DEB_SOFT_DIRS}/opt/rolling"
 DEB_CONFIG_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_config_service"
 DEB_FLASH_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_flash_service"
 
-# 确保必要的目录结构存在
-mkdir -p ${DEB_SOFT_DIR}
-mkdir -p ${DEB_CONFIG_SERVICE_DIR}
-mkdir -p ${DEB_FLASH_SERVICE_DIR}
-mkdir -p ${DEB_SOFT_DIRS}/usr/lib/udev/rules.d
-mkdir -p ${DEB_SOFT_DIRS}/lib/systemd/system
-mkdir -p ${DEB_SOFT_DIRS}/usr/share/dbus-1/system.d
+
 DEB_HELPER_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_helper_service"
 DEB_MA_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_ma_service"
 
@@ -57,6 +51,7 @@ function operation_menu_select()
     done
 }
 
+# 修改copy_file_to_deb_directory函数
 function copy_file_to_deb_directory()
 {
     # copy configservice file
@@ -67,27 +62,19 @@ function copy_file_to_deb_directory()
         rm -r ${DEB_FLASH_SERVICE_DIR}/*
     fi
 
-
     if [ "yes" == "${BUILD_CONFIG}" ]; then
         cp -raf ${CONFIG_SERVICE_APP_DIR}/*.ini ${DEB_CONFIG_SERVICE_DIR}
-        # 检查是否存在静态库文件（BUILD_LIB模式）
-        if [ -f ${CONFIG_SERVICE_APP_DIR}/lib*.a ]; then
-            # 复制静态库文件
-            cp -raf ${CONFIG_SERVICE_APP_DIR}/lib*.a ${DEB_CONFIG_SERVICE_DIR}
-        else
-            # 尝试复制可执行文件
-            if [ -f ${CONFIG_SERVICE_APP_PATH} ]; then
-                cp -raf ${CONFIG_SERVICE_APP_PATH} ${DEB_CONFIG_SERVICE_DIR}
-            else
-                echo "Warning: No config service executable or library found"
-            fi
-        fi
+        # 使用cp -f命令，不存在时不会报错
+        cp -fraf ${CONFIG_SERVICE_APP_PATH} ${DEB_CONFIG_SERVICE_DIR} 2>/dev/null || true
     fi
+
     if [ "yes" == "${BUILD_FLASH}" ]; then
         DEB_FLASH_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_flash_service"
-        cp -raf ${FLASH_SERVICE_APP_PATH} ${DEB_FLASH_SERVICE_DIR}
         cp -raf ${FLASH_SERVICE_APP_DIR}/*.ini ${DEB_FLASH_SERVICE_DIR}
+        # 使用cp -f命令，不存在时不会报错
+        cp -fraf ${FLASH_SERVICE_APP_PATH} ${DEB_FLASH_SERVICE_DIR} 2>/dev/null || true
     fi
+
     if [ "yes" == "${BUILD_HELPER}" ]; then
         if [ "$(ls -A $DEB_HELPER_SERVICE_DIR)" ]; then
             path=`pwd`
@@ -95,22 +82,15 @@ function copy_file_to_deb_directory()
             ls | grep -v  rolling_helper_tools  | awk  '{system("rm -rf "$1)}'
             cd $path
         fi
-        # 复制helper service的静态库
-        cp -raf ${HELPER_SERVICE_APP_PATH}/common/lib*.a ${DEB_HELPER_SERVICE_DIR}
-
-    fi
-    if [ "yes" == "${BUILD_MA}" ]; then
-        if [ -d $DEB_MA_SERVICE_DIR ]; then
-            # 根据不同的OEM类型复制不同的文件
-            if [ "lenovo" == "${OEM_BUILD}" ]; then
-                echo "Copying libmodemauth.so.1.0 for Lenovo OEM"
-                cp -raf ${MA_SERVICE_PATH_APP_DIR}/libmodemauth.so.1.0 ${DEB_MA_SERVICE_DIR}
-            else
-                # 默认复制rolling_ma
-                cp -raf ${MA_SERVICE_PATH_APP_PATH} ${DEB_MA_SERVICE_DIR}
+        # 使用cp -f命令，不存在时不会报错
+        cp -fraf ${HELPER_SERVICE_APP_PATH}/*rolling_helper ${DEB_HELPER_SERVICE_DIR} 2>/dev/null || true
+        # 确保实际二进制文件被重命名为rolling_helper
+        for bin_file in ${DEB_HELPER_SERVICE_DIR}/*rolling_helper; do
+            if [ -f "$bin_file" ] && [ "$bin_file" != "${DEB_HELPER_SERVICE_DIR}/rolling_helper" ]; then
+                mv "$bin_file" "${DEB_HELPER_SERVICE_DIR}/rolling_helper"
+                break
             fi
-            create_fcc_unlock ${DEB_MA_SERVICE_DIR}/fcc-unlock.d
-        fi
+        done
     fi
 }
 
@@ -130,7 +110,7 @@ function create_helper_conf()
     <allow own=\"com.rolling.helper\"/>
   </policy>
 </busconfig>" > $1/com.rolling.helper.conf
-    chmod 755 $1/com.rolling.helper.conf
+    chmod 644 $1/com.rolling.helper.conf
 }
 
 function create_config_service()
@@ -150,7 +130,7 @@ User=root
 [Install]
 Alias=rolling_config.service
 WantedBy=multi-user.target" > $1/rolling_config.service
-
+    chmod 644 $1/rolling_config.service
 }
 
 function create_flash_service()
@@ -169,6 +149,7 @@ User=root
 [Install]
 Alias=rolling_flash.service
 WantedBy=multi-user.target" > $1/rolling_flash.service
+    chmod 644 $1/rolling_flash.service
 
 }
 
@@ -189,23 +170,27 @@ User=root
 [Install]
 Alias=rolling_helper.service
 WantedBy=multi-user.target" > $1/rolling_helper.service
+    chmod 644 $1/rolling_helper.service
 
 }
 
 function create_config_d()
 {
     echo "LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/local/lib" > $1/env.conf
+    chmod 644 $1/env.conf
 
 }
 
 function create_flash_d()
 {
     echo "LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/local/lib" > $1/env.conf
+    chmod 644 $1/env.conf
 
 }
 function create_helper_d()
 {
     echo "LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/local/lib" > $1/env.conf
+    chmod 644 $1/env.conf
 
 }
 
@@ -232,27 +217,21 @@ ATTRS{idVendor}==\"413c\", ATTRS{idProduct}==\"8215\", ENV{.MM_USBIFNUM}==\"02\"
 
 LABEL=\"mm_rolling_linux_apps_port_types_end\"
 " > $1/76-mm-rolling-linux-apps-port-types.rules
-    chmod 755 $1/76-mm-rolling-linux-apps-port-types.rules
+    chmod 644 $1/76-mm-rolling-linux-apps-port-types.rules
 }
 function create_fcc_unlock()
 {
     for s in ${OEMUSBID_LIST[@]}
     do
-        # 根据不同的OEM类型创建不同的fcc-unlock脚本
+        # 确定要执行的二进制文件路径
+        local binary_path="/opt/rolling/rolling_ma_service/rolling_ma"
         if [ "lenovo" == "${OEM_BUILD}" ]; then
-            echo "#!/bin/sh
+            binary_path="/opt/rolling/rolling_ma_service/libmodemauth.so.1.0"
+        fi
 
-# SPDX-License-Identifier: CC0-1.0
-# 2023 Nero zhang <sinaro@sinaro.es>
-#
-# Rolling RW101 FCC unlock mechanism
-#
-
-# run fcc-unlock binary for Lenovo OEM
-/opt/rolling/rolling_ma_service/libmodemauth.so.1.0
-exit $?" > $1/$s
-        else
-            echo "#!/bin/sh
+        # 创建fcc-unlock脚本
+        cat > "$1/$s" << EOF
+#!/bin/sh
 
 # SPDX-License-Identifier: CC0-1.0
 # 2023 Nero zhang <sinaro@sinaro.es>
@@ -261,9 +240,9 @@ exit $?" > $1/$s
 #
 
 # run fcc-unlock binary
-/opt/rolling/rolling_ma_service/rolling_ma
-exit $?" > $1/$s
-        fi
+$binary_path
+exit $?
+EOF
     done
 
 }
@@ -314,31 +293,30 @@ function create_install()
     if [ -d "${BUILD_DIR}/release" ];then
        rm -r ${BUILD_DIR}/release
     fi
-    file_count=$(find "${APP_DIR}/rolling_helper_service/" -type f -name "*rolling_helper" | wc -l)
-    prefix="rolling_helper"
-    echo "file_count: ${file_count}"
-    for x in "${APP_DIR}/rolling_helper_service"/*"${prefix}"
-    do
-        file_name=$(basename "${x}")
-        DEB_SOFT_DIRS="${BUILD_DIR}/release/dpkg/${file_name::-15}"
-        DEB_SOFT_DIR="${DEB_SOFT_DIRS}/opt/rolling"
-        if [ "yes" == "${BUILD_CONFIG}" ]; then
-            DEB_CONFIG_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_config_service"
-        fi
-        if [ "yes" == "${BUILD_FLASH}" ]; then
-            DEB_FLASH_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_flash_service"
-        fi
-        if [ "yes" == "${BUILD_HELPER}" ]; then
-            DEB_HELPER_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_helper_service"
-        fi
-        if [ "yes" == "${BUILD_MA}" ]; then
-            DEB_MA_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_ma_service"
-        fi
-        create_and_install
-        copy_file_to_deb_directory ${file_name::-15}
-        echo "build_package: ${file_name::-15}"
-    done
-    # copy_file_to_deb_directory
+    
+    # 使用固定的安装目录，不包含项目和oem信息
+    DEB_SOFT_DIRS="${BUILD_DIR}/release/dpkg"
+    DEB_SOFT_DIR="${DEB_SOFT_DIRS}/opt/rolling"
+    
+    if [ "yes" == "${BUILD_CONFIG}" ]; then
+        DEB_CONFIG_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_config_service"
+    fi
+    if [ "yes" == "${BUILD_FLASH}" ]; then
+        DEB_FLASH_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_flash_service"
+    fi
+    if [ "yes" == "${BUILD_HELPER}" ]; then
+        DEB_HELPER_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_helper_service"
+    fi
+    if [ "yes" == "${BUILD_MA}" ]; then
+        DEB_MA_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_ma_service"
+    fi
+    
+    create_and_install
+    copy_file_to_deb_directory
+    
+    # 使用固定的包名，不包含项目和oem信息
+    build_package="rolling_linux"
+    echo "build_package: ${build_package}"
 }
 
 create_install
