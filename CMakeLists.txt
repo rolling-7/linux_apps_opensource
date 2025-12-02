@@ -159,6 +159,8 @@ set(PROJECT_DEB_CONTROL_PRERM "${PROJECT_DEB_CONTROL_PATH}/prerm")
 set(PROJECT_DEB_CONTROL_POSTRM "${PROJECT_DEB_CONTROL_PATH}/postrm")
 
 # can only build one deb
+set(outer_loop_exit FALSE)
+
 file(GLOB SUBDIRECTORIES "${CMAKE_SOURCE_DIR}/application/rolling_helper_service/*")
 foreach(SUBDIRS ${SUBDIRECTORIES})
     if(IS_DIRECTORY ${SUBDIRS})
@@ -192,6 +194,51 @@ foreach(SUBDIRS ${SUBDIRECTORIES})
 
                         # 使用install脚本创建的目录结构
                         set(deb_soft_dirs "${PROJECT_BINARY_DIR}/release/dpkg")
+                        
+                        # 设置CPack基本信息
+                        set(CPACK_PACKAGE_NAME "linux-apps-${SUBDIR_M}-${SUBDIR_N}-${SUBDIR_NAME}")
+                        set(CPACK_PACKAGE_VENDOR "rolling")
+
+                        # 根据BUILD_DEB和BUILD_RPM设置CPack生成器
+                        if (${BUILD_DEB} STREQUAL "yes")
+                            set(CPACK_GENERATOR "DEB")
+                            set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+                            set(CPACK_DEBIAN_PACKAGE_GROUP "rolling")
+                            set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "WWAN Linux apps")
+                            set(CPACK_DEBIAN_PACKAGE_SECTION "base")
+                            set(CPACK_DEBIAN_PACKAGE_PRIORITY "standard")
+                            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+                            set(CPACK_DEBIAN_PACKAGE_MAINTAINER "rolling")
+                            set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA 
+                                "${PROJECT_DEB_CONTROL_PREINST};${PROJECT_DEB_CONTROL_POSTINST};${PROJECT_DEB_CONTROL_PRERM};${PROJECT_DEB_CONTROL_POSTRM}")
+                        elseif (${BUILD_RPM} STREQUAL "yes")
+                            set(CPACK_GENERATOR "RPM")
+                            # set(CMAKE_BUILD_TYPE Release)
+                            set(CPACK_STRIP_FILES TRUE)
+                            set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
+                            set(CPACK_RPM_PACKAGE_SUMMARY "WWAN Linux apps")
+                            set(CPACK_RPM_PACKAGE_DEBUG FALSE)
+                            set(CPACK_RPM_PACKAGE_ARCHITECTURE "x86_64")
+                            set(CPACK_RPM_PACKAGE_GROUP "Applications/Internet")
+                            set(CPACK_RPM_PACKAGE_DESCRIPTION "WWAN Linux apps")
+                            set(CPACK_RPM_PACKAGE_LICENSE "GPL")
+                            set(CPACK_RPM_PRE_INSTALL_SCRIPT_FILE "${PROJECT_DEB_CONTROL_PREINST}")
+                            set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${PROJECT_DEB_CONTROL_POSTINST}")
+                            set(CPACK_RPM_PRE_UNINSTALL_SCRIPT_FILE "${PROJECT_DEB_CONTROL_PRERM}")
+                            set(CPACK_RPM_POST_UNINSTALL_SCRIPT_FILE "${PROJECT_DEB_CONTROL_POSTRM}")
+                            set(CPACK_RPM_RELOCATION_PATHS "/lib/systemd/system;/opt/rolling")
+                        else()
+                            set(CPACK_GENERATOR "DEB")
+                            set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+                            set(CPACK_DEBIAN_PACKAGE_GROUP "rolling")
+                            set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "WWAN Linux apps")
+                            set(CPACK_DEBIAN_PACKAGE_SECTION "base")
+                            set(CPACK_DEBIAN_PACKAGE_PRIORITY "standard")
+                            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+                            set(CPACK_DEBIAN_PACKAGE_MAINTAINER "rolling")
+                            set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA 
+                                "${PROJECT_DEB_CONTROL_PREINST};${PROJECT_DEB_CONTROL_POSTINST};${PROJECT_DEB_CONTROL_PRERM};${PROJECT_DEB_CONTROL_POSTRM}")
+                        endif()
                         
                         # 安装opt目录
                         install(DIRECTORY "${deb_soft_dirs}/opt/rolling" 
@@ -237,50 +284,6 @@ foreach(SUBDIRS ${SUBDIRECTORIES})
                                 DESTINATION "${CMAKE_INSTALL_PREFIX}/usr/share/dbus-1/system.d")
                         install(CODE "MESSAGE(\"install success!\")")
 
-                    
-                        
-                        set(CPACK_PACKAGE_NAME "linux-apps-${SUBDIR_M}-${SUBDIR_N}-${SUBDIR_NAME}")
-                        set(CPACK_PACKAGE_VENDOR "rolling")
-
-                        if (${BUILD_DEB} STREQUAL "yes")
-                            set(CPACK_GENERATOR "DEB")
-                            set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
-                            set(CPACK_DEBIAN_PACKAGE_GROUP "rolling")
-                            set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "WWAN Linux apps")
-                            set(CPACK_DEBIAN_PACKAGE_SECTION "base")
-                            set(CPACK_DEBIAN_PACKAGE_PRIORITY "standard")
-                            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
-                            set(CPACK_DEBIAN_PACKAGE_MAINTAINER "rolling")
-                            set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA 
-                                "${PROJECT_DEB_CONTROL_PREINST};${PROJECT_DEB_CONTROL_POSTINST};${PROJECT_DEB_CONTROL_PRERM};${PROJECT_DEB_CONTROL_POSTRM}")
-                        elseif (${BUILD_RPM} STREQUAL "yes")
-                            set(CPACK_GENERATOR "RPM")
-                            # set(CMAKE_BUILD_TYPE Release)
-                            set(CPACK_STRIP_FILES TRUE)
-                            set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
-                            set(CPACK_RPM_PACKAGE_SUMMARY "WWAN Linux apps")
-                            set(CPACK_RPM_PACKAGE_DEBUG FALSE)
-                            set(CPACK_RPM_PACKAGE_ARCHITECTURE "x86_64")
-                            set(CPACK_RPM_PACKAGE_GROUP "Applications/Internet")
-                            set(CPACK_RPM_PACKAGE_DESCRIPTION "WWAN Linux apps")
-                            set(CPACK_RPM_PACKAGE_LICENSE "GPL")
-                            set(CPACK_RPM_PRE_INSTALL_SCRIPT_FILE "${PROJECT_DEB_CONTROL_PREINST}")
-                            set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${PROJECT_DEB_CONTROL_POSTINST}")
-                            set(CPACK_RPM_PRE_UNINSTALL_SCRIPT_FILE "${PROJECT_DEB_CONTROL_PRERM}")
-                            set(CPACK_RPM_POST_UNINSTALL_SCRIPT_FILE "${PROJECT_DEB_CONTROL_POSTRM}")
-                            set(CPACK_RPM_RELOCATION_PATHS "/lib/systemd/system;/opt/rolling")
-                        else()
-                            set(CPACK_GENERATOR "DEB")
-                            set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
-                            set(CPACK_DEBIAN_PACKAGE_GROUP "rolling")
-                            set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "WWAN Linux apps")
-                            set(CPACK_DEBIAN_PACKAGE_SECTION "base")
-                            set(CPACK_DEBIAN_PACKAGE_PRIORITY "standard")
-                            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
-                            set(CPACK_DEBIAN_PACKAGE_MAINTAINER "rolling")
-                            set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA 
-                                "${PROJECT_DEB_CONTROL_PREINST};${PROJECT_DEB_CONTROL_POSTINST};${PROJECT_DEB_CONTROL_PRERM};${PROJECT_DEB_CONTROL_POSTRM}")
-                        endif()
                         set(outer_loop_exit TRUE)
                         break()
                     endif()
@@ -296,12 +299,104 @@ foreach(SUBDIRS ${SUBDIRECTORIES})
     endif()
 endforeach()
 
+# 确保使用正确的包名格式，与成功工程保持一致
+if(NOT DEFINED CPACK_PACKAGE_NAME)
+    # 设置CPack基本信息
+    set(CPACK_PACKAGE_NAME "linux-apps-qualcomm-${PROJECT_BUILD}-${OEM_BUILD}")
+    set(CPACK_PACKAGE_VENDOR "rolling")
+
+    # 根据BUILD_DEB和BUILD_RPM设置CPack生成器
+    if (${BUILD_DEB} STREQUAL "yes")
+        set(CPACK_GENERATOR "DEB")
+        set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+        set(CPACK_DEBIAN_PACKAGE_GROUP "rolling")
+        set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "WWAN Linux apps")
+        set(CPACK_DEBIAN_PACKAGE_SECTION "base")
+        set(CPACK_DEBIAN_PACKAGE_PRIORITY "standard")
+        set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+        set(CPACK_DEBIAN_PACKAGE_MAINTAINER "rolling")
+        set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA 
+            "${PROJECT_DEB_CONTROL_PREINST};${PROJECT_DEB_CONTROL_POSTINST};${PROJECT_DEB_CONTROL_PRERM};${PROJECT_DEB_CONTROL_POSTRM}")
+    elseif (${BUILD_RPM} STREQUAL "yes")
+        set(CPACK_GENERATOR "RPM")
+        # set(CMAKE_BUILD_TYPE Release)
+        set(CPACK_STRIP_FILES TRUE)
+        set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
+        set(CPACK_RPM_PACKAGE_SUMMARY "WWAN Linux apps")
+        set(CPACK_RPM_PACKAGE_DEBUG FALSE)
+        set(CPACK_RPM_PACKAGE_ARCHITECTURE "x86_64")
+        set(CPACK_RPM_PACKAGE_GROUP "Applications/Internet")
+        set(CPACK_RPM_PACKAGE_DESCRIPTION "WWAN Linux apps")
+        set(CPACK_RPM_PACKAGE_LICENSE "GPL")
+        set(CPACK_RPM_PRE_INSTALL_SCRIPT_FILE "${PROJECT_DEB_CONTROL_PREINST}")
+        set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${PROJECT_DEB_CONTROL_POSTINST}")
+        set(CPACK_RPM_PRE_UNINSTALL_SCRIPT_FILE "${PROJECT_DEB_CONTROL_PRERM}")
+        set(CPACK_RPM_POST_UNINSTALL_SCRIPT_FILE "${PROJECT_DEB_CONTROL_POSTRM}")
+        set(CPACK_RPM_RELOCATION_PATHS "/lib/systemd/system;/opt/rolling")
+    else()
+        set(CPACK_GENERATOR "DEB")
+        set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+        set(CPACK_DEBIAN_PACKAGE_GROUP "rolling")
+        set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "WWAN Linux apps")
+        set(CPACK_DEBIAN_PACKAGE_SECTION "base")
+        set(CPACK_DEBIAN_PACKAGE_PRIORITY "standard")
+        set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+        set(CPACK_DEBIAN_PACKAGE_MAINTAINER "rolling")
+        set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA 
+            "${PROJECT_DEB_CONTROL_PREINST};${PROJECT_DEB_CONTROL_POSTINST};${PROJECT_DEB_CONTROL_PRERM};${PROJECT_DEB_CONTROL_POSTRM}")
+    endif()
+    
+    # 使用install脚本创建的目录结构
+    set(deb_soft_dirs "${PROJECT_BINARY_DIR}/release/dpkg")
+    
+    # 安装opt目录
+    install(DIRECTORY "${deb_soft_dirs}/opt/rolling" 
+            FILE_PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ 
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/opt")
+    
+    # 安装udev相关目录
+    install(DIRECTORY "${deb_soft_dirs}/usr/lib/udev/"  
+            FILE_PERMISSIONS    
+            OWNER_EXECUTE OWNER_WRITE OWNER_READ
+            GROUP_EXECUTE GROUP_READ 
+            WORLD_EXECUTE WORLD_READ
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/usr/lib/udev/")
+    
+    install(DIRECTORY "${deb_soft_dirs}/usr/lib/udev/rules.d/"  
+            FILE_PERMISSIONS    
+            OWNER_EXECUTE OWNER_WRITE OWNER_READ
+            GROUP_EXECUTE GROUP_READ 
+            WORLD_EXECUTE WORLD_READ
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/usr/lib/udev/rules.d")
+    
+    # 安装systemd服务目录
+    install(DIRECTORY "${deb_soft_dirs}/lib/systemd/system/"  
+            FILE_PERMISSIONS    
+            OWNER_EXECUTE OWNER_WRITE OWNER_READ
+            GROUP_EXECUTE GROUP_READ 
+            WORLD_EXECUTE WORLD_READ
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/systemd/system")
+    
+    # 安装dbus配置目录
+    install(DIRECTORY "${deb_soft_dirs}/usr/share/dbus-1/"  
+            FILE_PERMISSIONS    
+            OWNER_EXECUTE OWNER_WRITE OWNER_READ
+            GROUP_EXECUTE GROUP_READ 
+            WORLD_EXECUTE WORLD_READ
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/usr/share/dbus-1/")
+    
+    install(DIRECTORY "${deb_soft_dirs}/usr/share/dbus-1/system.d/"  
+            FILE_PERMISSIONS    
+            OWNER_EXECUTE OWNER_WRITE OWNER_READ
+            GROUP_EXECUTE GROUP_READ 
+            WORLD_EXECUTE WORLD_READ
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/usr/share/dbus-1/system.d")
+    install(CODE "MESSAGE(\"install success!\")")
+endif()
+
 # set(CPACK_PROJECT_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/CPackConfig_qualcomm_rw135_lenovo.cmake")
 
 include(CPack)
-
-
-
 
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in

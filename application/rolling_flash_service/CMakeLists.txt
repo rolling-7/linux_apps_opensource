@@ -28,10 +28,17 @@ set(CMAKE_C_COMPILER gcc)
 set(FLASH_PREPROCESSOR_DEF "-fstack-protector-strong -O2 -Wformat -Wformat-security  -fPIC -std=gnu99")
 add_compile_options(-pthread) 
 
+# 检查BUILD_BY_LIB参数
+set(build_by_lib 0)
+if(DEFINED BUILD_BY_LIB)
+    set(build_by_lib ${BUILD_BY_LIB})
+    message(STATUS "BUILD_BY_LIB parameter: ${BUILD_BY_LIB}")
+endif()
+
 # 当build_by_lib为1时，设置BUILD_LIB为no
 if(build_by_lib)
     set(BUILD_LIB "no")
-
+    message(STATUS "build_by_lib=1, setting BUILD_LIB=no")
 endif()
 
 # 当BUILD_LIB为yes时，自动设置build_by_code为1，与helper_service保持一致

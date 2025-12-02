@@ -52,7 +52,6 @@ gboolean start_flash_timer(int time);
 void flashport_process();
 
 void normalport_process();
-static g_flags get_set_reboot_flag(g_flags  value);
 gboolean stop_fastboot_timer();
 gboolean stop_flash_timer();
 

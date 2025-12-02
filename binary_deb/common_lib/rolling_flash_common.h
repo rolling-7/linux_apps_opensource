@@ -63,6 +63,7 @@
 #include "safe_str_lib.h"
 #include "rolling-helper-gdbus-generated.h"
 #include "rolling_log.h"
+#include "version.h"
 
 #define LIST_NUM 8
 #define AT_COMMAND_LEN		(256)
@@ -80,11 +81,10 @@
 #define INI_PATH			    "/etc/opt/rolling/config_file/rolling_flash_service/FwUpdate.ini"
 #define NEW_PACKAGE_PATH	    "/etc/opt/rolling/rolling_fw_pkg/FwPackage.zip"
 #define FWPACKAGE_PATH		    "/etc/opt/rolling/rolling_fw_pkg/FwPackage/"
-#define FLASH_VERSION_STRING    "2.0.11"
 
-RollingGdbusHelper *proxy;
-int fast_boot_timer_source = -1;
-char g_mccmnc[32] = {0};
+extern RollingGdbusHelper *proxy;
+extern int fast_boot_timer_source;
+extern char g_mccmnc[32];
 static GMainLoop *gMainloop = NULL;
 
 typedef enum
@@ -102,8 +102,7 @@ typedef struct g_flags{
  g_full_flags.flag_arry[1]:   9008->reboot->reboot_flag =1 > ready_falsh_flag = 1-> flash
  g_full_flags.flag_arry[2]:    modem port state:0 nopoert 1: flashport/fastbootport/normalport
 */
-g_flags g_full_flags = {UNKNOWN_TYPE, 0, 0, 0};
-
+extern g_flags g_full_flags;
 
 
 typedef struct {
@@ -114,27 +113,29 @@ typedef struct {
 } flash_info;
 
 typedef struct {
-	char *fw_ver;
-	char *cust_pack;
-	char *oem_pack;
-	char *dev_pack;
-	char *ap_ver;
+    char *fw_ver;
+    char *cust_pack;
+    char *oem_pack;
+    char *dev_pack;
+    char *ap_ver;
 } fw_details;
 
 typedef struct {
-	char fw_ver[DEV_SUBSYSID_LEN];
-	char cust_pack[DEV_SUBSYSID_LEN];
-	char oem_pack[DEV_SUBSYSID_LEN];
-	char dev_pack[DEV_SUBSYSID_LEN];
-	char ap_ver[DEV_SUBSYSID_LEN];
+    char fw_ver[DEV_SUBSYSID_LEN];
+    char cust_pack[DEV_SUBSYSID_LEN];
+    char oem_pack[DEV_SUBSYSID_LEN];
+    char dev_pack[DEV_SUBSYSID_LEN];
+    char ap_ver[DEV_SUBSYSID_LEN];
 } mdmver_details;
-mdmver_details g_curmdm_versions;
+extern mdmver_details g_curmdm_versions;
 
+// 函数声明
+g_flags get_set_reboot_flag(g_flags value);
+gboolean sim_status_handler(RollingGdbusHelper *object, const char *value, gpointer userdata);
+gboolean fastboot_status_handler(RollingGdbusHelper *object, const char *value, gpointer userdata);
+void print_usage(void);
 
-
-
-
- typedef enum {
+typedef enum {
     FW_UPDATE_FLOW_UNLOCK,
     FW_UPDATE_FLOW_LOCK,
     FW_UPDATE_FLOW_STATE_INIT
@@ -280,4 +281,10 @@ bool update_need_sim_enable();
 int parse_version_info(char* mccmnc_id, char* subsys_id, char* oemver, fw_details *fw_ver);
 gboolean reboot_modem(gpointer data);
 gboolean fastboot_reboot_callback();
+gboolean stop_fastboot_timer();
+gboolean init_flash_timer();
+gboolean regester_interesting_siganl();
+gboolean get_port_state(e_port_state *state);
+gboolean start_flash_timer(int time);
+
 #endif

@@ -16,7 +16,7 @@ The rolling_flash rolling_config  rolling_helper binaries are both LGPL 2.0, and
     2. `rm -rf /opt/rolling/rolling_ma_service/fcc-unlock.d`
     3. `chown -R root:root  /usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d`
     4. `chmod 755 -R /usr/lib/x86_64-linux-gnu/ModemManager/fcc-unlock.d`
-- This application runs only on ubuntu24.04，fedora is in testing, other ubuntu versions and other OS have unverified.
+- This application runs only on ubuntu24.04, fedora is in testing, other ubuntu versions and other OS have unverified.
 # Building on Ubuntu
 
 ## 1. Install

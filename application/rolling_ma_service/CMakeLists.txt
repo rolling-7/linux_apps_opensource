@@ -18,54 +18,12 @@ cmake_minimum_required(VERSION 3.6)
 
 project(rolling_ma_service)
 
-find_package(PkgConfig REQUIRED)
-find_package(LibXml2 REQUIRED)
-pkg_check_modules(deps REQUIRED IMPORTED_TARGET glib-2.0 gio-2.0 gio-unix-2.0)
-
-find_program(GDBUSCODEGEN NAMES gdbus-codegen)
-if (NOT GDBUSCODEGEN)
-	message(SEND_ERROR "Could not find gdbus-codegen")
-endif(NOT GDBUSCODEGEN)
-
-add_custom_command(OUTPUT generated/rolling-helper-gdbus-generated.c
-		COMMAND ${GDBUSCODEGEN}  --generate-c-code=rolling-helper-gdbus-generated --c-namespace=RollingGdbus --interface-prefix com.rolling. ${CMAKE_SOURCE_DIR}/application/dbus/introspection/com.rolling.helper.xml
-		COMMAND mkdir -p generated/
-		COMMAND mv rolling-helper-gdbus-generated.c generated/
-)
-
-set(MA_MAJOR_VERSION 2)
-set(MA_MINOR_VERSION 0)
-set(MA_PATCH_VERSION 0)
-
-set(MA_VERSION_STRING ${MA_MAJOR_VERSION}.${MA_MINOR_VERSION}.${MA_PATCH_VERSION})
-
-set(MA_PREPROCESSOR_DEF "-fstack-protector-strong -O2 -Wformat -Wformat-security  -fPIC -std=gnu99")
-add_definitions(${MA_PREPROCESSOR_DEF})
-
-##################################
-# Rolling linux ma service binary configuration
-add_subdirectory(sha256)
-add_subdirectory(bios)
-add_compile_options(-pthread)
-aux_source_directory(. DIR_SRCS)
-
-include_directories(${PROJECT_BINARY_DIR}/)
-
-include_directories(/usr/include/dbus-1.0
-		/usr/lib/x86_64-linux-gnu/dbus-1.0/includels
-		/usr/include/gio-unix-2.0
-		/usr/include/libmount
-		/usr/include/blkid
-		/usr/include/glib-2.0
-		/usr/lib/x86_64-linux-gnu/glib-2.0/include
-		../libs/libxml2-v2.11.5/
-		${CMAKE_SOURCE_DIR}/application/include/common/
-		${CMAKE_SOURCE_DIR}/build/application/rolling_ma_service/
-		.)
-set(source_files rolling_ma_main.c generated/rolling-helper-gdbus-generated.c ${DIR_SRCS})
-add_executable(rolling_ma ${source_files})
-target_link_libraries(rolling_ma PkgConfig::deps
-		LibXml2::LibXml2 dbus-1 udev gio-2.0 gobject-2.0 glib-2.0  random varient )
+# 检查BUILD_BY_LIB参数
+set(build_by_lib 0)
+if(DEFINED BUILD_BY_LIB)
+    set(build_by_lib ${BUILD_BY_LIB})
+    message(STATUS "BUILD_BY_LIB parameter: ${BUILD_BY_LIB}")
+endif()
 
 # 设置binary_deb/common_lib输出路径
 set(lib_output_path ${CMAKE_SOURCE_DIR}/binary_deb/common_lib)
@@ -75,39 +33,121 @@ message(STATUS "MA service configured with PROJECT_BUILD: ${PROJECT_BUILD}")
 message(STATUS "MA service configured with OEM_BUILD: ${OEM_BUILD}")
 message(STATUS "MA service lib output path: ${lib_output_path}")
 
-# 创建主目标 - 只负责创建目录
-add_custom_target(
-    ma_build_lib
+# 当BUILD_BY_LIB为1时，直接根据OEM类型拷贝文件，不执行编译
+if(build_by_lib)
+    message(STATUS "BUILD_BY_LIB=1, skipping compilation for ma_service, will copy files directly")
+    
     # 创建输出目录
-    COMMAND mkdir -p ${lib_output_path}
-    COMMENT "MA service build lib and copy files according to OEM type"
-)
-
-# 添加默认构建依赖，确保在构建rolling_ma后执行复制操作
-add_dependencies(ma_build_lib rolling_ma)
-
-# 根据不同OEM构建类型执行不同的复制操作
-# Lenovo OEM 复制操作
-if(OEM_BUILD STREQUAL "lenovo")
-    add_custom_command(
-        TARGET ma_build_lib POST_BUILD
-        COMMAND echo "Copying libmodemauth.so.1.0 for Lenovo OEM"
-        COMMAND cp -raf ${CMAKE_CURRENT_SOURCE_DIR}/libmodemauth.so.1.0 ${lib_output_path}
-        VERBATIM
+    file(MAKE_DIRECTORY ${lib_output_path})
+    
+    # 根据不同OEM构建类型执行不同的复制操作
+    # Lenovo OEM 复制操作
+    if(OEM_BUILD STREQUAL "lenovo")
+        message(STATUS "Copying libmodemauth.so.1.0 for Lenovo OEM")
+        file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/libmodemauth.so.1.0 DESTINATION ${lib_output_path})
+    # Dell OEM 复制操作
+    elseif(OEM_BUILD STREQUAL "dell")
+        message(STATUS "Copying rolling_ma for Dell OEM")
+        file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/rolling_ma DESTINATION ${lib_output_path})
+    # 其他OEM类型
+    else()
+        message(STATUS "No specific copy action for OEM: ${OEM_BUILD}")
+    endif()
+    
+    # 创建主目标 - 只负责拷贝文件
+    add_custom_target(
+        rolling_ma
+        COMMENT "MA service rolling_ma target in BUILD_BY_LIB mode"
     )
-# Dell OEM 复制操作
-elseif(OEM_BUILD STREQUAL "dell")
-    add_custom_command(
-        TARGET ma_build_lib POST_BUILD
-        COMMAND echo "Copying rolling_ma for Dell OEM"
-        COMMAND cp -raf ${PROJECT_BINARY_DIR}/rolling_ma ${lib_output_path}
-        VERBATIM
+    
+    # 创建ma_build_lib目标，与其他服务保持一致
+    add_custom_target(
+        ma_build_lib
+        COMMENT "MA service ma_build_lib target in BUILD_BY_LIB mode"
     )
-# 其他OEM类型
 else()
-    add_custom_command(
-        TARGET ma_build_lib POST_BUILD
-        COMMAND echo "No specific copy action for OEM: ${OEM_BUILD}"
-        VERBATIM
+    # 正常编译模式
+    find_package(PkgConfig REQUIRED)
+    find_package(LibXml2 REQUIRED)
+    pkg_check_modules(deps REQUIRED IMPORTED_TARGET glib-2.0 gio-2.0 gio-unix-2.0)
+
+    find_program(GDBUSCODEGEN NAMES gdbus-codegen)
+    if (NOT GDBUSCODEGEN)
+        message(SEND_ERROR "Could not find gdbus-codegen")
+    endif(NOT GDBUSCODEGEN)
+
+    add_custom_command(OUTPUT generated/rolling-helper-gdbus-generated.c
+            COMMAND ${GDBUSCODEGEN}  --generate-c-code=rolling-helper-gdbus-generated --c-namespace=RollingGdbus --interface-prefix com.rolling. ${CMAKE_SOURCE_DIR}/application/dbus/introspection/com.rolling.helper.xml
+            COMMAND mkdir -p generated/
+            COMMAND mv rolling-helper-gdbus-generated.c generated/
     )
+
+    set(MA_MAJOR_VERSION 2)
+    set(MA_MINOR_VERSION 0)
+    set(MA_PATCH_VERSION 0)
+
+    set(MA_VERSION_STRING ${MA_MAJOR_VERSION}.${MA_MINOR_VERSION}.${MA_PATCH_VERSION})
+
+    set(MA_PREPROCESSOR_DEF "-fstack-protector-strong -O2 -Wformat -Wformat-security  -fPIC -std=gnu99")
+    add_definitions(${MA_PREPROCESSOR_DEF})
+
+    ##################################
+    # Rolling linux ma service binary configuration
+    add_compile_options(-pthread)
+    aux_source_directory(. DIR_SRCS)
+
+    include_directories(${PROJECT_BINARY_DIR}/)
+
+    include_directories(/usr/include/dbus-1.0
+            /usr/lib/x86_64-linux-gnu/dbus-1.0/includels
+            /usr/include/gio-unix-2.0
+            /usr/include/libmount
+            /usr/include/blkid
+            /usr/include/glib-2.0
+            /usr/lib/x86_64-linux-gnu/glib-2.0/include
+            ../libs/libxml2-v2.11.5/
+            ${CMAKE_SOURCE_DIR}/application/include/common/
+            ${CMAKE_SOURCE_DIR}/build/application/rolling_ma_service/
+            .)
+    set(source_files rolling_ma_main.c generated/rolling-helper-gdbus-generated.c ${DIR_SRCS})
+    add_executable(rolling_ma ${source_files})
+    target_link_libraries(rolling_ma PkgConfig::deps
+            LibXml2::LibXml2 dbus-1 udev gio-2.0 gobject-2.0 glib-2.0  random varient )
+
+    # 创建主目标 - 只负责创建目录
+    add_custom_target(
+        ma_build_lib
+        # 创建输出目录
+        COMMAND mkdir -p ${lib_output_path}
+        COMMENT "MA service build lib and copy files according to OEM type"
+    )
+
+    # 添加默认构建依赖，确保在构建rolling_ma后执行复制操作
+    add_dependencies(ma_build_lib rolling_ma)
+
+    # 根据不同OEM构建类型执行不同的复制操作
+    # Lenovo OEM 复制操作
+    if(OEM_BUILD STREQUAL "lenovo")
+        add_custom_command(
+            TARGET ma_build_lib POST_BUILD
+            COMMAND echo "Copying libmodemauth.so.1.0 for Lenovo OEM"
+            COMMAND cp -raf ${CMAKE_CURRENT_SOURCE_DIR}/libmodemauth.so.1.0 ${lib_output_path}
+            VERBATIM
+        )
+    # Dell OEM 复制操作
+    elseif(OEM_BUILD STREQUAL "dell")
+        add_custom_command(
+            TARGET ma_build_lib POST_BUILD
+            COMMAND echo "Copying rolling_ma for Dell OEM"
+            COMMAND cp -raf ${PROJECT_BINARY_DIR}/rolling_ma ${lib_output_path}
+            VERBATIM
+        )
+    # 其他OEM类型
+    else()
+        add_custom_command(
+            TARGET ma_build_lib POST_BUILD
+            COMMAND echo "No specific copy action for OEM: ${OEM_BUILD}"
+            VERBATIM
+        )
+    endif()
 endif()

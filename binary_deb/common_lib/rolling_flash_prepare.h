@@ -23,7 +23,7 @@
 #include "rolling_flash_common.h"
 
 bool dbus_servie_is_ready();
-static void print_usage(void);
+void print_usage(void);
 
 
 #endif
