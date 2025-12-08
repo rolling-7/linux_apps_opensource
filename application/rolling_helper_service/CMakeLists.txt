@@ -62,17 +62,15 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include
 set(helper_source_files rolling_helper_main.c)
 set(build_by_code 0)
 set(build_by_lib 0)
+# 只有在BUILD_LIB变量未定义时才设置默认值
+if(NOT DEFINED BUILD_LIB)
+    set(BUILD_LIB "no")
+endif()
 
 # 检查BUILD_BY_LIB参数，将其转换为build_by_lib变量
 if(DEFINED BUILD_BY_LIB)
     set(build_by_lib ${BUILD_BY_LIB})
     message(STATUS "BUILD_BY_LIB parameter: ${BUILD_BY_LIB}")
-endif()
-
-# 当build_by_lib为1时，设置BUILD_LIB为no
-if(build_by_lib)
-    set(BUILD_LIB "no")
-    message(STATUS "Build by lib mode enabled, setting BUILD_LIB=no")
 endif()
 
 # 当BUILD_LIB为yes时，自动设置build_by_code为1
@@ -82,9 +80,38 @@ if(${BUILD_LIB} STREQUAL "yes")
 else()
     set(build_by_code 0)
     message(STATUS "Build exe mode enabled, setting build_by_code=0")
+    # 只有在非BUILD_LIB模式下，当build_by_lib为1时，才设置BUILD_LIB为no
+    if(build_by_lib)
+        set(BUILD_LIB "no")
+        message(STATUS "Build by lib mode enabled, setting BUILD_LIB=no")
+    endif()
 endif()
 
 add_definitions(${HELPER_PREPROCESSOR_DEF})
+
+# 定义通用链接库变量
+set(HELPER_COMMON_LIBS
+    PkgConfig::deps
+    LibXml2::LibXml2
+    udev
+    stdc++
+    stdc++fs
+)
+
+# 定义通用链接库变量（带safestring）
+set(HELPER_COMMON_LIBS_WITH_SAFESTRING
+    ${PROJECT_BINARY_DIR}/../3rd/safestringlib/libsafestring_static.a
+    ${HELPER_COMMON_LIBS}
+)
+
+# 创建链接库的函数，封装重复的链接逻辑
+function(helper_link_libraries target_name)
+    # 链接库，传递所有额外参数作为库
+    target_link_libraries(${target_name}
+        ${ARGN}
+        ${HELPER_COMMON_LIBS_WITH_SAFESTRING}
+    )
+endfunction()
 
 # D-Bus 接口生成
 find_program(GDBUSCODEGEN NAMES gdbus-codegen)
@@ -114,22 +141,19 @@ if(build_by_lib)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/empty.c "")
     
     # 静态库路径指向binary_deb/common_lib目录下的通用库文件
-    set(STATIC_LIB_PATH "${CMAKE_SOURCE_DIR}/binary_deb/common_lib/libqualcomm_${PROJECT_BUILD}_${OEM_BUILD}_2.0.23.a")
+    # Fix: Use rw101 instead of rw10 for the library name
+    if(${PROJECT_BUILD} STREQUAL "rw10")
+        set(CORRECT_PROJECT_BUILD "rw101")
+    else()
+        set(CORRECT_PROJECT_BUILD ${PROJECT_BUILD})
+    endif()
+    set(STATIC_LIB_PATH "${CMAKE_SOURCE_DIR}/binary_deb/common_lib/libqualcomm_${CORRECT_PROJECT_BUILD}_${OEM_BUILD}_2.0.23.a")
     message(STATUS "Using static library: ${STATIC_LIB_PATH}")
     
     # 构建通用可执行文件（无论是否指定了特定项目和OEM，都生成相同的可执行文件名）
     add_executable(rolling_helper ${CMAKE_CURRENT_BINARY_DIR}/empty.c)
     # 链接静态库
-    target_link_libraries(rolling_helper
-        ${STATIC_LIB_PATH}
-        ${CMAKE_SOURCE_DIR}/binary_deb/common_lib/libcode.a
-        ${PROJECT_BINARY_DIR}/../3rd/safestringlib/libsafestring_static.a
-        PkgConfig::deps
-        LibXml2::LibXml2
-        udev
-        stdc++
-        stdc++fs
-    )
+    helper_link_libraries(rolling_helper "${STATIC_LIB_PATH}" "${CMAKE_SOURCE_DIR}/binary_deb/common_lib/libcode.a")
     message(STATUS "Building generic executable using library: rolling_helper")
 # 然后检查BUILD_LIB模式，构建静态库，但只有当build_by_lib不为1时才执行
 elseif (${BUILD_LIB} STREQUAL "yes" AND NOT build_by_lib)
@@ -147,14 +171,7 @@ elseif (${BUILD_LIB} STREQUAL "yes" AND NOT build_by_lib)
     add_library(rolling_helper_service_${HELPER_VERSION_STRING} STATIC ${ALL_SOURCE_FILES})
     # 确保静态库构建依赖于D-Bus生成目标
     add_dependencies(rolling_helper_service_${HELPER_VERSION_STRING} helper_dbus_generated)
-    target_link_libraries(rolling_helper_service_${HELPER_VERSION_STRING}
-        ${PROJECT_BINARY_DIR}/../3rd/safestringlib/libsafestring_static.a
-        PkgConfig::deps
-        LibXml2::LibXml2
-        udev
-        stdc++
-        stdc++fs
-    )
+    helper_link_libraries(rolling_helper_service_${HELPER_VERSION_STRING})
     
     # 安装静态库
     install(TARGETS rolling_helper_service_${HELPER_VERSION_STRING} DESTINATION lib)
@@ -164,26 +181,7 @@ elseif (${BUILD_LIB} STREQUAL "yes" AND NOT build_by_lib)
         ${CMAKE_CURRENT_SOURCE_DIR}/common/common_base_func.h 
         DESTINATION include)
     
-    # 在BUILD_LIB模式下，helper服务的可执行文件由common子目录生成的特定静态库构建
-    message(STATUS "Building helper service executable using specific static library in BUILD_LIB mode")
-    
-    # 创建一个简单的空源文件，用于满足CMake的add_executable要求
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/empty.c "")
-    
-    # 使用common子目录生成的特定静态库构建可执行文件
-    add_executable(rolling_helper ${CMAKE_CURRENT_BINARY_DIR}/empty.c)
-    # 确保可执行文件构建依赖于D-Bus生成目标和特定的静态库
-    add_dependencies(rolling_helper helper_dbus_generated qualcomm_${PROJECT_BUILD}_${OEM_BUILD}_${HELPER_VERSION_STRING})
-    target_link_libraries(rolling_helper
-        ${PROJECT_BINARY_DIR}/../3rd/safestringlib/libsafestring_static.a
-        ${CMAKE_CURRENT_BINARY_DIR}/common/libqualcomm_${PROJECT_BUILD}_${OEM_BUILD}_${HELPER_VERSION_STRING}.a
-        ${CMAKE_CURRENT_BINARY_DIR}/common/code/libcode.a
-        PkgConfig::deps
-        LibXml2::LibXml2
-        udev
-        stdc++
-        stdc++fs
-    )
+
 # 最后检查常规可执行文件构建模式
 elseif(NOT build_by_lib AND NOT ${BUILD_LIB} STREQUAL "yes")
     # 构建可执行文件模式
@@ -217,8 +215,7 @@ elseif(NOT build_by_lib AND NOT ${BUILD_LIB} STREQUAL "yes")
                             string(SUBSTRING "${lib_name}" ${start_index} ${end_index} exe_prefix)
                             message("executable lib:${exe_prefix}")
                             add_executable(${exe_prefix}_rolling_helper ${helper_source_files})
-                            target_link_libraries(${exe_prefix}_rolling_helper ${file} LibXml2::LibXml2 udev PkgConfig::deps ${CMAKE_CURRENT_SOURCE_DIR}/common_lib/libcode.a
-                                    stdc++ stdc++fs)
+                            helper_link_libraries(${exe_prefix}_rolling_helper "${file}" "${CMAKE_CURRENT_SOURCE_DIR}/common_lib/libcode.a")
                         endif()
                     else()
                         set(PROJECT_BUILD rw101 rw135 rw350)
@@ -234,8 +231,7 @@ elseif(NOT build_by_lib AND NOT ${BUILD_LIB} STREQUAL "yes")
                                     string(SUBSTRING "${lib_name}" ${start_index} ${end_index} exe_prefix)
                                     message("executable lib:${exe_prefix}")
                                     add_executable(${exe_prefix}_rolling_helper ${helper_source_files})
-                                    target_link_libraries(${exe_prefix}_rolling_helper ${file} LibXml2::LibXml2 udev PkgConfig::deps ${CMAKE_CURRENT_SOURCE_DIR}/common_lib/libcode.a
-                                    stdc++ stdc++fs)
+                                    helper_link_libraries(${exe_prefix}_rolling_helper "${file}" "${CMAKE_CURRENT_SOURCE_DIR}/common_lib/libcode.a")
                                 endif()
                             endforeach()
                         endforeach()
@@ -261,6 +257,8 @@ elseif(NOT build_by_lib AND NOT ${BUILD_LIB} STREQUAL "yes")
                                 endif()
                                 message("executable lib: ${SUBDIR_M}_proj_${SUBDIR_N}_${SUBDIR_NAME}")
                                 add_executable(${SUBDIR_M}_${SUBDIR_N}_${SUBDIR_NAME}_rolling_helper ${helper_source_files})
+                                # 注意：这里不使用helper_link_libraries函数，因为它依赖于common_${SUBDIR_M}_${SUBDIR_N}_${SUBDIR_NAME}，
+                                # 而这个目标是在common/CMakeLists.txt中定义的，不在当前函数的作用域内
                                 target_link_libraries(${SUBDIR_M}_${SUBDIR_N}_${SUBDIR_NAME}_rolling_helper LibXml2::LibXml2 PkgConfig::deps code 
                                                     common_${SUBDIR_M}_${SUBDIR_N}_${SUBDIR_NAME})
                             endif()

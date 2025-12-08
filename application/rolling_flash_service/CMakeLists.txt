@@ -28,17 +28,10 @@ set(CMAKE_C_COMPILER gcc)
 set(FLASH_PREPROCESSOR_DEF "-fstack-protector-strong -O2 -Wformat -Wformat-security  -fPIC -std=gnu99")
 add_compile_options(-pthread) 
 
-# 检查BUILD_BY_LIB参数
-set(build_by_lib 0)
-if(DEFINED BUILD_BY_LIB)
-    set(build_by_lib ${BUILD_BY_LIB})
-    message(STATUS "BUILD_BY_LIB parameter: ${BUILD_BY_LIB}")
-endif()
-
 # 当build_by_lib为1时，设置BUILD_LIB为no
 if(build_by_lib)
     set(BUILD_LIB "no")
-    message(STATUS "build_by_lib=1, setting BUILD_LIB=no")
+
 endif()
 
 # 当BUILD_LIB为yes时，自动设置build_by_code为1，与helper_service保持一致
@@ -57,6 +50,22 @@ pkg_check_modules(deps REQUIRED IMPORTED_TARGET glib-2.0 gio-2.0 gio-unix-2.0)
 
 # 添加预处理定义
 add_definitions(${FLASH_PREPROCESSOR_DEF})
+
+# 定义通用链接库变量
+set(FLASH_COMMON_LIBS
+    ${PROJECT_BINARY_DIR}/../3rd/safestringlib/libsafestring_static.a
+    PkgConfig::deps
+    LibXml2::LibXml2
+)
+
+# 创建链接库的函数，封装重复的链接逻辑
+function(flash_link_libraries target_name)
+    # 链接库，传递所有额外参数作为库
+    target_link_libraries(${target_name}
+        ${ARGN}
+        ${FLASH_COMMON_LIBS}
+    )
+endfunction()
 
 # D-Bus 接口生成
 find_program(GDBUSCODEGEN NAMES gdbus-codegen)
@@ -126,12 +135,6 @@ if (NOT GDBUSCODEGEN)
 	message(SEND_ERROR "Could not find gdbus-codegen")
 endif(NOT GDBUSCODEGEN)
 
-add_custom_command(
-	OUTPUT generated/rolling-helper-gdbus-generated.c generated/rolling-helper-gdbus-generated.h
-	COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/generated
-	COMMAND ${GDBUSCODEGEN}  --generate-c-code=${CMAKE_CURRENT_BINARY_DIR}/generated/rolling-helper-gdbus-generated --c-namespace=RollingGdbus --interface-prefix com.rolling. ${CMAKE_SOURCE_DIR}/application/dbus/introspection/com.rolling.helper.xml
-	)
-
 # 创建一个自定义目标来确保D-Bus接口文件被生成
 add_custom_target(flash_dbus_generated ALL DEPENDS generated/rolling-helper-gdbus-generated.c generated/rolling-helper-gdbus-generated.h)
 
@@ -150,36 +153,18 @@ if(build_by_lib)
 	# 构建通用可执行文件（无论是否指定了特定项目和OEM，都生成相同的可执行文件名）
 	add_executable(rolling_flash ${CMAKE_CURRENT_BINARY_DIR}/empty.c)
 	# 链接静态库
-	target_link_libraries(rolling_flash
-		${STATIC_LIB_PATH}
-		${PROJECT_BINARY_DIR}/../3rd/safestringlib/libsafestring_static.a
-		PkgConfig::deps
-		LibXml2::LibXml2
-	)
+	flash_link_libraries(rolling_flash ${STATIC_LIB_PATH})
 	message(STATUS "Building generic executable using library: rolling_flash")
 # 然后检查BUILD_LIB模式，构建静态库，但只有当build_by_lib不为1时才执行
 elseif (${BUILD_LIB} STREQUAL "yes" AND NOT build_by_lib)
 	# 构建静态库模式
 	message(STATUS "Building flash service as static library")
 	add_library(rolling_flash_service_${FLASH_VERSION_STRING} STATIC ${source_files})
-	target_link_libraries(rolling_flash_service_${FLASH_VERSION_STRING}
-		${PROJECT_BINARY_DIR}/../3rd/safestringlib/libsafestring_static.a
-		PkgConfig::deps
-		LibXml2::LibXml2
-	)
+	flash_link_libraries(rolling_flash_service_${FLASH_VERSION_STRING})
 	
 	# 安装静态库
 	install(TARGETS rolling_flash_service_${FLASH_VERSION_STRING} DESTINATION lib)
 	install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/rolling_flash_common.h DESTINATION include)
-	
-	# 同时构建可执行文件
-	message(STATUS "Building flash service executable in BUILD_LIB mode")
-	add_executable(rolling_flash ${source_files})
-	target_link_libraries(rolling_flash
-		${PROJECT_BINARY_DIR}/../3rd/safestringlib/libsafestring_static.a
-		PkgConfig::deps
-		LibXml2::LibXml2
-	)
 # 最后检查常规可执行文件构建模式
 elseif(NOT build_by_lib)
 	# 构建可执行文件模式
@@ -189,20 +174,12 @@ elseif(NOT build_by_lib)
 	if ((NOT ${PROJECT_BUILD} STREQUAL OFF) AND (NOT ${OEM_BUILD} STREQUAL OFF))
 		# 构建特定项目和OEM的可执行文件
 		add_executable(${PROJECT_BUILD}_${OEM_BUILD}_rolling_flash ${source_files})
-		target_link_libraries(${PROJECT_BUILD}_${OEM_BUILD}_rolling_flash
-			${PROJECT_BINARY_DIR}/../3rd/safestringlib/libsafestring_static.a
-			PkgConfig::deps
-			LibXml2::LibXml2
-		)
+		flash_link_libraries(${PROJECT_BUILD}_${OEM_BUILD}_rolling_flash)
 		message(STATUS "Building specific executable: ${PROJECT_BUILD}_${OEM_BUILD}_rolling_flash")
 	else()
 		# 构建通用可执行文件
 		add_executable(rolling_flash ${source_files})
-		target_link_libraries(rolling_flash
-			${PROJECT_BINARY_DIR}/../3rd/safestringlib/libsafestring_static.a
-			PkgConfig::deps
-			LibXml2::LibXml2
-		)
+		flash_link_libraries(rolling_flash)
 		message(STATUS "Building generic executable: rolling_flash")
 	endif()
 endif()

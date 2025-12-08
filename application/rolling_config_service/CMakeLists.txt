@@ -47,6 +47,21 @@ pkg_check_modules(deps REQUIRED IMPORTED_TARGET glib-2.0 gio-2.0 gio-unix-2.0)
 # 添加预处理定义
 add_definitions(${CONFIG_PREPROCESSOR_DEF})
 
+# 定义通用链接库变量
+set(CONFIG_COMMON_LIBS
+    ${PROJECT_BINARY_DIR}/../3rd/iniparser/libiniparser.a
+    LibXml2::LibXml2 -ldl -lpthread -lm PkgConfig::deps ${CMAKE_DL_LIBS}
+)
+
+# 创建链接库的函数，封装重复的链接逻辑
+function(config_link_libraries target_name)
+    # 链接库，传递所有额外参数作为库
+    target_link_libraries(${target_name}
+        ${ARGN}
+        ${CONFIG_COMMON_LIBS}
+    )
+endfunction()
+
 # D-Bus 接口生成
 find_program(GDBUSCODEGEN NAMES gdbus-codegen)
 if (NOT GDBUSCODEGEN)
@@ -136,42 +151,24 @@ if(build_by_lib)
     # 构建通用可执行文件（无论是否指定了特定项目和OEM，都生成相同的可执行文件名）
     add_executable(rolling_config ${CMAKE_CURRENT_BINARY_DIR}/empty.c)
     # 链接静态库
-    target_link_libraries(rolling_config
-        ${STATIC_LIB_PATH}
-        ${PROJECT_BINARY_DIR}/../3rd/iniparser/libiniparser.a
-        LibXml2::LibXml2 -ldl -lpthread -lm PkgConfig::deps ${CMAKE_DL_LIBS}
-    )
+    config_link_libraries(rolling_config ${STATIC_LIB_PATH})
     message(STATUS "Building generic executable using library: rolling_config")
 elseif (${BUILD_LIB} STREQUAL "yes")
 	# 构建静态库模式
 	message(STATUS "Building config service as static library")
 	add_library(rolling_config_service_${CONFIG_VERSION_STRING} STATIC ${CONFIG_SOURCES})
-	target_link_libraries(rolling_config_service_${CONFIG_VERSION_STRING}
-		${PROJECT_BINARY_DIR}/../3rd/iniparser/libiniparser.a
-		LibXml2::LibXml2 -ldl -lpthread -lm PkgConfig::deps ${CMAKE_DL_LIBS}
-	)
+	config_link_libraries(rolling_config_service_${CONFIG_VERSION_STRING})
 	
 	# 安装静态库
 	install(TARGETS rolling_config_service_${CONFIG_VERSION_STRING} DESTINATION lib)
 	install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION include)
-	
-	# 同时构建可执行文件
-	message(STATUS "Building config service executable in BUILD_LIB mode")
-	add_executable(rolling_config ${CONFIG_SOURCES})
-	target_link_libraries(rolling_config
-		${PROJECT_BINARY_DIR}/../3rd/iniparser/libiniparser.a
-		LibXml2::LibXml2 -ldl -lpthread -lm PkgConfig::deps ${CMAKE_DL_LIBS}
-	)
 else()
 	# 构建可执行文件模式
 	message(STATUS "Building config service as executable")
 	
 	# 构建通用可执行文件（无论是否指定了特定项目和OEM，都生成相同的可执行文件名）
 		add_executable(rolling_config ${CONFIG_SOURCES})
-		target_link_libraries(rolling_config
-			${PROJECT_BINARY_DIR}/../3rd/iniparser/libiniparser.a
-			LibXml2::LibXml2 -ldl -lpthread -lm PkgConfig::deps ${CMAKE_DL_LIBS}
-		)
+		config_link_libraries(rolling_config)
 		message(STATUS "Building generic executable: rolling_config")
 endif()
 
