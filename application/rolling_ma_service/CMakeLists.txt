@@ -45,6 +45,10 @@ if(build_by_lib)
     if(OEM_BUILD STREQUAL "lenovo")
         message(STATUS "Copying libmodemauth.so.1.0 for Lenovo OEM")
         file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/libmodemauth.so.1.0 DESTINATION ${lib_output_path})
+    # Dell OEM 复制操作
+    elseif(OEM_BUILD STREQUAL "dell")
+        message(STATUS "Copying rolling_ma for Dell OEM")
+        file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/rolling_ma DESTINATION ${lib_output_path})
     # 其他OEM类型
     else()
         message(STATUS "No specific copy action for OEM: ${OEM_BUILD}")
@@ -128,6 +132,14 @@ else()
             TARGET ma_build_lib POST_BUILD
             COMMAND echo "Copying libmodemauth.so.1.0 for Lenovo OEM"
             COMMAND cp -raf ${CMAKE_CURRENT_SOURCE_DIR}/libmodemauth.so.1.0 ${lib_output_path}
+            VERBATIM
+        )
+    # Dell OEM 复制操作
+    elseif(OEM_BUILD STREQUAL "dell")
+        add_custom_command(
+            TARGET ma_build_lib POST_BUILD
+            COMMAND echo "Copying rolling_ma for Dell OEM"
+            COMMAND cp -raf ${PROJECT_BINARY_DIR}/rolling_ma ${lib_output_path}
             VERBATIM
         )
     # 其他OEM类型

@@ -20,7 +20,7 @@ project(rolling_config_service)
 # 版本配置
 set(CONFIG_MAJOR_VERSION 2)
 set(CONFIG_MINOR_VERSION 0)
-set(CONFIG_PATCH_VERSION 9)
+set(CONFIG_PATCH_VERSION 10)
 set(CONFIG_VERSION_STRING ${CONFIG_MAJOR_VERSION}.${CONFIG_MINOR_VERSION}.${CONFIG_PATCH_VERSION})
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/version.h.in"
 		"./version.h")
@@ -30,7 +30,7 @@ set(CMAKE_C_COMPILER gcc)
 set(CONFIG_PREPROCESSOR_DEF "-fstack-protector-strong -O2 -Wformat -Wformat-security  -fPIC -std=gnu99")
 add_compile_options(-pthread)
 
-# 检查是否构建静态库
+# 检查是否从源码编译
 set(build_by_code 0)
 
 # 当BUILD_LIB为yes时，自动设置build_by_code为1，与helper_service和flash_service保持一致
@@ -144,42 +144,42 @@ if(build_by_lib)
     # 静态库路径指向binary_deb/common_lib目录下的通用库文件
     set(STATIC_LIB_PATH "${CMAKE_SOURCE_DIR}/binary_deb/common_lib/librolling_config_service_${CONFIG_VERSION_STRING}.a")
     message(STATUS "Using static library: ${STATIC_LIB_PATH}")
-    
+
     # 创建一个简单的空源文件，用于满足CMake的add_executable要求
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/empty.c "")
-    
+
     # 构建通用可执行文件（无论是否指定了特定项目和OEM，都生成相同的可执行文件名）
     add_executable(rolling_config ${CMAKE_CURRENT_BINARY_DIR}/empty.c)
     # 链接静态库
     config_link_libraries(rolling_config ${STATIC_LIB_PATH})
     message(STATUS "Building generic executable using library: rolling_config")
 elseif (${BUILD_LIB} STREQUAL "yes")
-	# 构建静态库模式
-	message(STATUS "Building config service as static library")
-	add_library(rolling_config_service_${CONFIG_VERSION_STRING} STATIC ${CONFIG_SOURCES})
-	config_link_libraries(rolling_config_service_${CONFIG_VERSION_STRING})
-	
-	# 安装静态库
-	install(TARGETS rolling_config_service_${CONFIG_VERSION_STRING} DESTINATION lib)
-	install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION include)
+    # 构建静态库模式
+    message(STATUS "Building config service as static library")
+    add_library(rolling_config_service_${CONFIG_VERSION_STRING} STATIC ${CONFIG_SOURCES})
+    config_link_libraries(rolling_config_service_${CONFIG_VERSION_STRING})
+
+    # 安装静态库
+    install(TARGETS rolling_config_service_${CONFIG_VERSION_STRING} DESTINATION lib)
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION include)
+
 else()
-	# 构建可执行文件模式
-	message(STATUS "Building config service as executable")
-	
-	# 构建通用可执行文件（无论是否指定了特定项目和OEM，都生成相同的可执行文件名）
-		add_executable(rolling_config ${CONFIG_SOURCES})
-		config_link_libraries(rolling_config)
-		message(STATUS "Building generic executable: rolling_config")
+    # 构建可执行文件模式
+    message(STATUS "Building config service as executable")
+    # 构建通用可执行文件
+    add_executable(rolling_config ${CONFIG_SOURCES})
+    config_link_libraries(rolling_config)
+    message(STATUS "Building generic executable: rolling_config")
 endif()
 
 # 静态库构建与复制功能 - 与helper_service和flash_service使用完全相同的目录结构和复制路径
 if (build_by_code AND (${BUILD_LIB} STREQUAL "yes"))
     # 设置与helper_service和flash_service完全相同的库输出路径
     set(lib_path ${PROJECT_BINARY_DIR}/../../common_lib)
-    
+
     # 定义静态库名称
     set(STATIC_LIB_NAME "librolling_config_service_${CONFIG_VERSION_STRING}.a")
-    
+
     # 创建一个统一的config_build_lib目标，避免重复代码
     add_custom_target(
         config_build_lib
@@ -199,4 +199,3 @@ if (build_by_code AND (${BUILD_LIB} STREQUAL "yes"))
         COMMENT "Config service build lib successfully"
     )
 endif()
-

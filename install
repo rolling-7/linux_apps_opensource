@@ -54,37 +54,29 @@ function operation_menu_select()
 # 修改copy_file_to_deb_directory函数
 function copy_file_to_deb_directory()
 {
-    # 确保目录存在
-    mkdir -p ${DEB_CONFIG_SERVICE_DIR} 2>/dev/null || true
-    mkdir -p ${DEB_FLASH_SERVICE_DIR} 2>/dev/null || true
-    mkdir -p ${DEB_HELPER_SERVICE_DIR} 2>/dev/null || true
-    
     # copy configservice file
-    if [ "$(ls -A $DEB_CONFIG_SERVICE_DIR 2>/dev/null)" ]; then
-        rm -r ${DEB_CONFIG_SERVICE_DIR}/* 2>/dev/null || true
+    if [ "$(ls -A $DEB_CONFIG_SERVICE_DIR)" ]; then
+        rm -r ${DEB_CONFIG_SERVICE_DIR}/*
     fi
-    if [ "$(ls -A $DEB_FLASH_SERVICE_DIR 2>/dev/null)" ]; then
-        rm -r ${DEB_FLASH_SERVICE_DIR}/* 2>/dev/null || true
+    if [ "$(ls -A $DEB_FLASH_SERVICE_DIR)" ]; then
+        rm -r ${DEB_FLASH_SERVICE_DIR}/*
     fi
 
-    if [ "yes" == "${BUILD_CONFIG}" ] || [ "" == "${BUILD_CONFIG}" ]; then
-        mkdir -p ${DEB_CONFIG_SERVICE_DIR}
-        cp -raf ${CONFIG_SERVICE_APP_DIR}/*.ini ${DEB_CONFIG_SERVICE_DIR} 2>/dev/null || true
+    if [ "yes" == "${BUILD_CONFIG}" ]; then
+        cp -raf ${CONFIG_SERVICE_APP_DIR}/*.ini ${DEB_CONFIG_SERVICE_DIR}
         # 使用cp -f命令，不存在时不会报错
         cp -fraf ${CONFIG_SERVICE_APP_PATH} ${DEB_CONFIG_SERVICE_DIR} 2>/dev/null || true
     fi
 
-    if [ "yes" == "${BUILD_FLASH}" ] || [ "" == "${BUILD_FLASH}" ]; then
+    if [ "yes" == "${BUILD_FLASH}" ]; then
         DEB_FLASH_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_flash_service"
-        mkdir -p ${DEB_FLASH_SERVICE_DIR}
-        cp -raf ${FLASH_SERVICE_APP_DIR}/*.ini ${DEB_FLASH_SERVICE_DIR} 2>/dev/null || true
+        cp -raf ${FLASH_SERVICE_APP_DIR}/*.ini ${DEB_FLASH_SERVICE_DIR}
         # 使用cp -f命令，不存在时不会报错
         cp -fraf ${FLASH_SERVICE_APP_PATH} ${DEB_FLASH_SERVICE_DIR} 2>/dev/null || true
     fi
 
-    if [ "yes" == "${BUILD_HELPER}" ] || [ "" == "${BUILD_HELPER}" ]; then
-        mkdir -p ${DEB_HELPER_SERVICE_DIR}
-        if [ "$(ls -A $DEB_HELPER_SERVICE_DIR 2>/dev/null)" ]; then
+    if [ "yes" == "${BUILD_HELPER}" ]; then
+        if [ "$(ls -A $DEB_HELPER_SERVICE_DIR)" ]; then
             path=`pwd`
             cd $DEB_HELPER_SERVICE_DIR
             ls | grep -v  rolling_helper_tools  | awk  '{system("rm -rf "$1)}'
@@ -92,8 +84,8 @@ function copy_file_to_deb_directory()
         fi
         # 使用cp -f命令，不存在时不会报错
         cp -fraf ${HELPER_SERVICE_APP_PATH}/*rolling_helper ${DEB_HELPER_SERVICE_DIR} 2>/dev/null || true
-        # 使用ls命令带重定向，然后循环结果
-        for bin_file in $(ls -1 ${DEB_HELPER_SERVICE_DIR}/*rolling_helper 2>/dev/null); do
+        # 确保实际二进制文件被重命名为rolling_helper
+        for bin_file in ${DEB_HELPER_SERVICE_DIR}/*rolling_helper; do
             if [ -f "$bin_file" ] && [ "$bin_file" != "${DEB_HELPER_SERVICE_DIR}/rolling_helper" ]; then
                 mv "$bin_file" "${DEB_HELPER_SERVICE_DIR}/rolling_helper"
                 break
@@ -286,6 +278,7 @@ function create_and_install()
         mkdir -p ${DEB_MA_SERVICE_DIR}/fcc-unlock.d
     fi
 
+    mkdir -p ${DEB_SOFT_DIRS}/opt/rolling/rolling_fw_pkg
     mkdir -p ${DEB_SOFT_DIRS}/usr/share/dbus-1/system.d/
     create_helper_conf ${DEB_SOFT_DIRS}/usr/share/dbus-1/system.d/
     mkdir -p ${DEB_SOFT_DIRS}/usr/lib/udev/rules.d/

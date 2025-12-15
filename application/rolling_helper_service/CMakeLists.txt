@@ -18,7 +18,7 @@ project(rolling_helper_service)
 
 set(HELPER_MAJOR_VERSION 2)
 set(HELPER_MINOR_VERSION 0)
-set(HELPER_PATCH_VERSION 23)
+set(HELPER_PATCH_VERSION 24)
 set(HELPER_VERSION_STRING ${HELPER_MAJOR_VERSION}.${HELPER_MINOR_VERSION}.${HELPER_PATCH_VERSION})
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/version.h.in"
                 "./version.h")
@@ -45,7 +45,6 @@ find_package(LibXml2 REQUIRED)
 pkg_check_modules(deps REQUIRED IMPORTED_TARGET glib-2.0 gio-2.0 gio-unix-2.0 mbim-glib mm-glib)
 ##################################
 
-
 ##################################
 # Rolling linux helper service binary configuration
 add_compile_options(-pthread)
@@ -57,7 +56,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include
                     /usr/include/libmbim-glib
                     /usr/local/include/libmbim-glib
                     ${CMAKE_CURRENT_SOURCE_DIR})
-
 
 set(helper_source_files rolling_helper_main.c)
 set(build_by_code 0)
@@ -136,20 +134,14 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/generated)
 if(build_by_lib)
     # 当build_by_lib=1时，跳过源码编译，只从库文件构建
     message(STATUS "STATTUSbuild lib not build exe")
-    
+
     # 创建一个简单的空源文件，用于满足CMake的add_executable要求
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/empty.c "")
-    
+
     # 静态库路径指向binary_deb/common_lib目录下的通用库文件
-    # Fix: Use rw101 instead of rw10 for the library name
-    if(${PROJECT_BUILD} STREQUAL "rw10")
-        set(CORRECT_PROJECT_BUILD "rw101")
-    else()
-        set(CORRECT_PROJECT_BUILD ${PROJECT_BUILD})
-    endif()
-    set(STATIC_LIB_PATH "${CMAKE_SOURCE_DIR}/binary_deb/common_lib/libqualcomm_${CORRECT_PROJECT_BUILD}_${OEM_BUILD}_2.0.23.a")
+    set(STATIC_LIB_PATH "${CMAKE_SOURCE_DIR}/binary_deb/common_lib/libqualcomm_${PROJECT_BUILD}_${OEM_BUILD}_${HELPER_VERSION_STRING}.a")
     message(STATUS "Using static library: ${STATIC_LIB_PATH}")
-    
+
     # 构建通用可执行文件（无论是否指定了特定项目和OEM，都生成相同的可执行文件名）
     add_executable(rolling_helper ${CMAKE_CURRENT_BINARY_DIR}/empty.c)
     # 链接静态库
@@ -159,7 +151,7 @@ if(build_by_lib)
 elseif (${BUILD_LIB} STREQUAL "yes" AND NOT build_by_lib)
     # 构建静态库模式
     message(STATUS "Building helper service as static library")
-    
+
     # 收集所有源文件（包括common目录下的源文件和生成的D-Bus文件）
     file(GLOB COMMON_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/common/*.c")
     set(ALL_SOURCE_FILES 
@@ -167,12 +159,12 @@ elseif (${BUILD_LIB} STREQUAL "yes" AND NOT build_by_lib)
         ${COMMON_SOURCE_FILES}
         ${CMAKE_CURRENT_BINARY_DIR}/generated/rolling-helper-gdbus-generated.c
     )
-    
+
     add_library(rolling_helper_service_${HELPER_VERSION_STRING} STATIC ${ALL_SOURCE_FILES})
     # 确保静态库构建依赖于D-Bus生成目标
     add_dependencies(rolling_helper_service_${HELPER_VERSION_STRING} helper_dbus_generated)
     helper_link_libraries(rolling_helper_service_${HELPER_VERSION_STRING})
-    
+
     # 安装静态库
     install(TARGETS rolling_helper_service_${HELPER_VERSION_STRING} DESTINATION lib)
     install(FILES 
@@ -180,15 +172,12 @@ elseif (${BUILD_LIB} STREQUAL "yes" AND NOT build_by_lib)
         ${CMAKE_CURRENT_SOURCE_DIR}/common/rolling_helper_basic_func.h 
         ${CMAKE_CURRENT_SOURCE_DIR}/common/common_base_func.h 
         DESTINATION include)
-    
 
 # 最后检查常规可执行文件构建模式
 elseif(NOT build_by_lib AND NOT ${BUILD_LIB} STREQUAL "yes")
     # 构建可执行文件模式
     message(STATUS "Building helper service as executable")
-    
-    # common子目录已经在BUILD_LIB模式下被添加，这里不再重复添加
-    
+
     # 常规构建模式，遍历目录结构
     file(GLOB SUBDIRECTORIES "./*")
     foreach(SUBDIRS ${SUBDIRECTORIES})
@@ -205,7 +194,6 @@ elseif(NOT build_by_lib AND NOT ${BUILD_LIB} STREQUAL "yes")
                 foreach(file ${file_names})
                     get_filename_component(lib_name ${file} NAME)
                     if ((NOT ${PROJECT_BUILD} STREQUAL OFF ) AND (NOT ${OEM_BUILD} STREQUAL OFF))
-                        
                         set(pattern ".*${PROJECT_BUILD}_${OEM_BUILD}.*")
                         string(REGEX MATCH "${pattern}" is_matched "${lib_name}")
                         if(is_matched)
@@ -214,8 +202,8 @@ elseif(NOT build_by_lib AND NOT ${BUILD_LIB} STREQUAL "yes")
                             math(EXPR end_index "${string_length} - 11") 
                             string(SUBSTRING "${lib_name}" ${start_index} ${end_index} exe_prefix)
                             message("executable lib:${exe_prefix}")
-                            add_executable(${exe_prefix}_rolling_helper ${helper_source_files})
-                            helper_link_libraries(${exe_prefix}_rolling_helper "${file}" "${CMAKE_CURRENT_SOURCE_DIR}/common_lib/libcode.a")
+                            add_executable(rolling_helper ${helper_source_files})
+                            helper_link_libraries(rolling_helper "${file}" "${CMAKE_CURRENT_SOURCE_DIR}/common_lib/libcode.a")
                         endif()
                     else()
                         set(PROJECT_BUILD rw101 rw135 rw350)
@@ -256,10 +244,10 @@ elseif(NOT build_by_lib AND NOT ${BUILD_LIB} STREQUAL "yes")
                                     endif()
                                 endif()
                                 message("executable lib: ${SUBDIR_M}_proj_${SUBDIR_N}_${SUBDIR_NAME}")
-                                add_executable(${SUBDIR_M}_${SUBDIR_N}_${SUBDIR_NAME}_rolling_helper ${helper_source_files})
+                                add_executable(rolling_helper ${helper_source_files})
                                 # 注意：这里不使用helper_link_libraries函数，因为它依赖于common_${SUBDIR_M}_${SUBDIR_N}_${SUBDIR_NAME}，
                                 # 而这个目标是在common/CMakeLists.txt中定义的，不在当前函数的作用域内
-                                target_link_libraries(${SUBDIR_M}_${SUBDIR_N}_${SUBDIR_NAME}_rolling_helper LibXml2::LibXml2 PkgConfig::deps code 
+                                target_link_libraries(rolling_helper LibXml2::LibXml2 PkgConfig::deps code 
                                                     common_${SUBDIR_M}_${SUBDIR_N}_${SUBDIR_NAME})
                             endif()
                         endforeach()

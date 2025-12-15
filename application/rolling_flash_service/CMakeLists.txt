@@ -18,7 +18,7 @@ project(rolling_flash_service)
 # 版本配置
 set(FLASH_MAJOR_VERSION 2)
 set(FLASH_MINOR_VERSION 0)
-set(FLASH_PATCH_VERSION 12)
+set(FLASH_PATCH_VERSION 13)
 set(FLASH_VERSION_STRING ${FLASH_MAJOR_VERSION}.${FLASH_MINOR_VERSION}.${FLASH_PATCH_VERSION})
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/version.h.in"
 				"./version.h")
@@ -141,58 +141,49 @@ add_custom_target(flash_dbus_generated ALL DEPENDS generated/rolling-helper-gdbu
 # 根据构建模式决定输出目标
 # 优先检查build_by_lib模式，从预构建静态库生成可执行文件
 if(build_by_lib)
-	# 当build_by_lib=1时，跳过源码编译，只从库文件构建
-	message(STATUS "STATTUSbuild lib not build exe")
-	# 静态库路径指向binary_deb/common_lib目录下的通用库文件
-	set(STATIC_LIB_PATH "${CMAKE_SOURCE_DIR}/binary_deb/common_lib/librolling_flash_service_${FLASH_VERSION_STRING}.a")
-	message(STATUS "Using static library: ${STATIC_LIB_PATH}")
-	
-	# 创建一个简单的空源文件，用于满足CMake的add_executable要求
-	file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/empty.c "")
-	
-	# 构建通用可执行文件（无论是否指定了特定项目和OEM，都生成相同的可执行文件名）
-	add_executable(rolling_flash ${CMAKE_CURRENT_BINARY_DIR}/empty.c)
-	# 链接静态库
-	flash_link_libraries(rolling_flash ${STATIC_LIB_PATH})
-	message(STATUS "Building generic executable using library: rolling_flash")
+    # 当build_by_lib=1时，跳过源码编译，只从库文件构建
+    message(STATUS "STATTUSbuild lib not build exe")
+    # 静态库路径指向binary_deb/common_lib目录下的通用库文件
+    set(STATIC_LIB_PATH "${CMAKE_SOURCE_DIR}/binary_deb/common_lib/librolling_flash_service_${FLASH_VERSION_STRING}.a")
+    message(STATUS "Using static library: ${STATIC_LIB_PATH}")
+
+    # 创建一个简单的空源文件，用于满足CMake的add_executable要求
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/empty.c "")
+
+    # 构建通用可执行文件（无论是否指定了特定项目和OEM，都生成相同的可执行文件名）
+    add_executable(rolling_flash ${CMAKE_CURRENT_BINARY_DIR}/empty.c)
+    # 链接静态库
+    flash_link_libraries(rolling_flash ${STATIC_LIB_PATH})
+    message(STATUS "Building generic executable using library: rolling_flash")
 # 然后检查BUILD_LIB模式，构建静态库，但只有当build_by_lib不为1时才执行
 elseif (${BUILD_LIB} STREQUAL "yes" AND NOT build_by_lib)
-	# 构建静态库模式
-	message(STATUS "Building flash service as static library")
-	add_library(rolling_flash_service_${FLASH_VERSION_STRING} STATIC ${source_files})
-	flash_link_libraries(rolling_flash_service_${FLASH_VERSION_STRING})
-	
-	# 安装静态库
-	install(TARGETS rolling_flash_service_${FLASH_VERSION_STRING} DESTINATION lib)
-	install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/rolling_flash_common.h DESTINATION include)
+    # 构建静态库模式
+    message(STATUS "Building flash service as static library")
+    add_library(rolling_flash_service_${FLASH_VERSION_STRING} STATIC ${source_files})
+    flash_link_libraries(rolling_flash_service_${FLASH_VERSION_STRING})
+
+    # 安装静态库
+    install(TARGETS rolling_flash_service_${FLASH_VERSION_STRING} DESTINATION lib)
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/rolling_flash_common.h DESTINATION include)
+
 # 最后检查常规可执行文件构建模式
 elseif(NOT build_by_lib)
-	# 构建可执行文件模式
-	message(STATUS "Building flash service as executable")
-	
-	# 检查是否指定了特定项目和OEM
-	if ((NOT ${PROJECT_BUILD} STREQUAL OFF) AND (NOT ${OEM_BUILD} STREQUAL OFF))
-		# 构建特定项目和OEM的可执行文件
-		add_executable(${PROJECT_BUILD}_${OEM_BUILD}_rolling_flash ${source_files})
-		flash_link_libraries(${PROJECT_BUILD}_${OEM_BUILD}_rolling_flash)
-		message(STATUS "Building specific executable: ${PROJECT_BUILD}_${OEM_BUILD}_rolling_flash")
-	else()
-		# 构建通用可执行文件
-		add_executable(rolling_flash ${source_files})
-		flash_link_libraries(rolling_flash)
-		message(STATUS "Building generic executable: rolling_flash")
-	endif()
+    # 构建可执行文件模式
+    message(STATUS "Building flash service as executable")
+    add_executable(rolling_flash ${source_files})
+    flash_link_libraries(rolling_flash)
+    message(STATUS "Building generic executable: rolling_flash")
 endif()
 
 # 静态库构建与复制功能 - 与helper_service使用完全相同的目录结构和复制路径
 if (build_by_code AND (${BUILD_LIB} STREQUAL "yes"))
     # 设置与helper_service完全相同的库输出路径
     set(lib_path ${PROJECT_BINARY_DIR}/../../common_lib)
-    
+
     # 根据不同项目类型创建相应的build_lib目标，使用与helper_service完全相同的目录结构
     if ((${PROJECT_BUILD} STREQUAL "rw101") OR (${PROJECT_BUILD} STREQUAL "rw135")) 
-		add_custom_target(
-			flash_build_lib
+        add_custom_target(
+            flash_build_lib
             # 创建输出目录（使用-p参数确保目录存在不会报错）
             COMMAND mkdir -p ${lib_path}
             # 复制flash服务构建的静态库
@@ -207,10 +198,10 @@ if (build_by_code AND (${BUILD_LIB} STREQUAL "yes"))
             # 复制D-Bus接口头文件
             COMMAND cp -raf ${CMAKE_CURRENT_BINARY_DIR}/generated/rolling-helper-gdbus-generated.h ${lib_path}
             COMMENT "Flash service build lib successfully"
-		)
+        )
     elseif(${PROJECT_BUILD} STREQUAL "rw350")
-		add_custom_target(
-			flash_build_lib
+        add_custom_target(
+            flash_build_lib
             # 创建输出目录（使用-p参数确保目录存在不会报错）
             COMMAND mkdir -p ${lib_path}
             # 复制flash服务构建的静态库
@@ -225,10 +216,10 @@ if (build_by_code AND (${BUILD_LIB} STREQUAL "yes"))
             # 复制D-Bus接口头文件
             COMMAND cp -raf ${CMAKE_CURRENT_BINARY_DIR}/generated/rolling-helper-gdbus-generated.h ${lib_path}
             COMMENT "Flash service build lib successfully"
-		)
+        )
     else()
-		add_custom_target(
-			flash_build_lib
+        add_custom_target(
+            flash_build_lib
             # 创建输出目录（使用-p参数确保目录存在不会报错）
             COMMAND mkdir -p ${lib_path}
             # 复制flash服务构建的静态库
@@ -243,6 +234,6 @@ if (build_by_code AND (${BUILD_LIB} STREQUAL "yes"))
             # 复制D-Bus接口头文件
             COMMAND cp -raf ${CMAKE_CURRENT_BINARY_DIR}/generated/rolling-helper-gdbus-generated.h ${lib_path}
             COMMENT "Flash service build lib successfully"
-		)
+        )
     endif()
 endif()
