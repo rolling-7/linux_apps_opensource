@@ -51,10 +51,10 @@ function operation_menu_select()
     done
 }
 
-# 修改copy_file_to_deb_directory函数
+# Modify copy_file_to_deb_directory function
 function copy_file_to_deb_directory()
 {
-    # copy configservice file
+    # Copy config service file
     if [ "$(ls -A $DEB_CONFIG_SERVICE_DIR)" ]; then
         rm -r ${DEB_CONFIG_SERVICE_DIR}/*
     fi
@@ -64,14 +64,14 @@ function copy_file_to_deb_directory()
 
     if [ "yes" == "${BUILD_CONFIG}" ]; then
         cp -raf ${CONFIG_SERVICE_APP_DIR}/*.ini ${DEB_CONFIG_SERVICE_DIR}
-        # 使用cp -f命令，不存在时不会报错
+        # Use cp -f command, no error if file doesn't exist
         cp -fraf ${CONFIG_SERVICE_APP_PATH} ${DEB_CONFIG_SERVICE_DIR} 2>/dev/null || true
     fi
 
     if [ "yes" == "${BUILD_FLASH}" ]; then
         DEB_FLASH_SERVICE_DIR="${DEB_SOFT_DIR}/rolling_flash_service"
         cp -raf ${FLASH_SERVICE_APP_DIR}/*.ini ${DEB_FLASH_SERVICE_DIR}
-        # 使用cp -f命令，不存在时不会报错
+        # Use cp -f command, no error if file doesn't exist
         cp -fraf ${FLASH_SERVICE_APP_PATH} ${DEB_FLASH_SERVICE_DIR} 2>/dev/null || true
     fi
 
@@ -82,9 +82,9 @@ function copy_file_to_deb_directory()
             ls | grep -v  rolling_helper_tools  | awk  '{system("rm -rf "$1)}'
             cd $path
         fi
-        # 使用cp -f命令，不存在时不会报错
+        # Use cp -f command, no error if file doesn't exist
         cp -fraf ${HELPER_SERVICE_APP_PATH}/*rolling_helper ${DEB_HELPER_SERVICE_DIR} 2>/dev/null || true
-        # 确保实际二进制文件被重命名为rolling_helper
+        # Ensure actual binary file is renamed to rolling_helper
         for bin_file in ${DEB_HELPER_SERVICE_DIR}/*rolling_helper; do
             if [ -f "$bin_file" ] && [ "$bin_file" != "${DEB_HELPER_SERVICE_DIR}/rolling_helper" ]; then
                 mv "$bin_file" "${DEB_HELPER_SERVICE_DIR}/rolling_helper"
@@ -256,13 +256,13 @@ function create_fcc_unlock()
 {
     for s in ${OEMUSBID_LIST[@]}
     do
-        # 确定要执行的二进制文件路径
+        # Determine the binary path to execute
         local binary_path="/opt/rolling/rolling_ma_service/rolling_ma"
         if [ "lenovo" == "${OEM_BUILD}" ]; then
-            binary_path="/opt/rolling/rolling_ma_service/libmodemauth.so.1.0"
+            binary_path="/opt/rolling/rolling_ma_service/libmodemauth.so.1.1"
         fi
 
-        # 创建fcc-unlock脚本
+        # Create fcc-unlock script
         cat > "$1/$s" << EOF
 #!/bin/sh
 
@@ -271,6 +271,7 @@ function create_fcc_unlock()
 #
 # Rolling RW101 FCC unlock mechanism
 #
+
 
 # run fcc-unlock binary
 $binary_path
@@ -321,14 +322,14 @@ function create_and_install()
 
 function create_install()
 {
-    # create release dir and create config files
+    # Create release directory and configuration files
     # create_and_install
-    # copy file to release
+    # Copy files to release directory
     if [ -d "${BUILD_DIR}/release" ];then
        rm -r ${BUILD_DIR}/release
     fi
     
-    # 使用固定的安装目录，不包含项目和oem信息
+    # Use fixed installation directory, not including project and OEM information
     DEB_SOFT_DIRS="${BUILD_DIR}/release/dpkg"
     DEB_SOFT_DIR="${DEB_SOFT_DIRS}/opt/rolling"
     
@@ -348,7 +349,7 @@ function create_install()
     create_and_install
     copy_file_to_deb_directory
     
-    # 使用固定的包名，不包含项目和oem信息
+    # Use fixed package name, not including project and OEM information
     build_package="rolling_linux"
     echo "build_package: ${build_package}"
 }

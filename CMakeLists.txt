@@ -42,7 +42,7 @@ set(build_deb FALSE)
 set(build_rpm FALSE)
 set(build_by_lib 0)
 
-# 保存命令行传递的值
+# Save command line values
 if(DEFINED BUILD_LIB AND NOT "${BUILD_LIB}" STREQUAL "")
     set(COMMAND_LINE_BUILD_LIB ${BUILD_LIB})
 endif()
@@ -53,7 +53,7 @@ if(DEFINED BUILD_RPM AND NOT "${BUILD_RPM}" STREQUAL "")
     set(COMMAND_LINE_BUILD_RPM ${BUILD_RPM})
 endif()
 
-# 处理BUILD_BY_LIB选项，将其转换为build_by_lib变量
+# Handle BUILD_BY_LIB option, convert to build_by_lib variable
 if (BUILD_BY_LIB)
     set(build_by_lib ${BUILD_BY_LIB})
 endif()
@@ -64,7 +64,7 @@ elseif (${BUILD_RPM} STREQUAL "yes")
     set(build_rpm TRUE)
 endif()
 
-# 如果变量为空，使用默认值
+# If variables are empty, use default values
 if("${PROJECT_BUILD}" STREQUAL "")
     set(PROJECT_BUILD ${DEFAULT_PROJECT_BUILD})
 endif()
@@ -77,12 +77,12 @@ execute_process(COMMAND bash ${PROJECT_SOURCE_DIR}/cmake_config
                         ${PROJECT_SOURCE_DIR} ${PROJECT_BUILD} ${OEM_BUILD})
 message("end config script!!!")
 
-# 检查配置文件是否存在
+# Check if configuration file exists
 if(EXISTS ${PROJECT_SOURCE_DIR}/build/${PROJECT_BUILD}_${OEM_BUILD}_config.cmake)
     include(${PROJECT_SOURCE_DIR}/build/${PROJECT_BUILD}_${OEM_BUILD}_config.cmake)
 endif()
 
-# 恢复命令行传递的值，如果有的话
+# Restore command line values if they exist
 if(DEFINED COMMAND_LINE_BUILD_LIB)
     set(BUILD_LIB ${COMMAND_LINE_BUILD_LIB})
 endif()
@@ -93,7 +93,7 @@ if(DEFINED COMMAND_LINE_BUILD_RPM)
     set(BUILD_RPM ${COMMAND_LINE_BUILD_RPM})
 endif()
 
-# 设置默认值
+# Set default values
 if("${BUILD_DEB}" STREQUAL "")
     set(BUILD_DEB ${DEFAULT_BUILD_DEB})
 endif()
@@ -116,7 +116,7 @@ if("${BUILD_MA}" STREQUAL "")
     set(BUILD_MA ${DEFAULT_BUILD_MA})
 endif()
 
-# 处理BUILD_DEB和BUILD_RPM
+# Handle BUILD_DEB and BUILD_RPM
 if(build_deb)
     set(BUILD_DEB "yes")
     set(BUILD_RPM "no")
@@ -136,7 +136,7 @@ message("build flash: ${BUILD_FLASH}")
 message("build config: ${BUILD_CONFIG}")
 message("build ma: ${BUILD_MA}")
 
-# 检查是否同时构建deb和rpm
+# Check if building both deb and rpm simultaneously
 if("${BUILD_DEB}" STREQUAL "yes" AND "${BUILD_RPM}" STREQUAL "yes")
     message(FATAL_ERROR "Can't build both deb and rpm at the same time!")
 endif()
@@ -203,15 +203,15 @@ foreach(SUBDIRS ${SUBDIRECTORIES})
                         message(STATUS " INSTALL project_path ${project_path}")
                         set(install_dir ${PROJECT_BINARY_DIR}/release/dpkg/${project_path})
 
-                        # 使用install脚本创建的目录结构
+                        # Use directory structure created by install script
                         set(deb_soft_dirs "${PROJECT_BINARY_DIR}/release/dpkg")
                         
-                        # 安装opt目录
+                        # Install opt directory
                         install(DIRECTORY "${deb_soft_dirs}/opt/rolling" 
                                 FILE_PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ 
                                 DESTINATION "${CMAKE_INSTALL_PREFIX}/opt")
                         
-                        # 安装udev相关目录
+                        # Install udev related directories
                         install(DIRECTORY "${deb_soft_dirs}/usr/lib/udev/"  
                                 FILE_PERMISSIONS    
                                 OWNER_EXECUTE OWNER_WRITE OWNER_READ
@@ -226,7 +226,7 @@ foreach(SUBDIRS ${SUBDIRECTORIES})
                                 WORLD_EXECUTE WORLD_READ
                                 DESTINATION "${CMAKE_INSTALL_PREFIX}/usr/lib/udev/rules.d")
                         
-                        # 安装systemd服务目录
+                        # Install systemd service directory
                         install(DIRECTORY "${deb_soft_dirs}/lib/systemd/system/"  
                                 FILE_PERMISSIONS    
                                 OWNER_EXECUTE OWNER_WRITE OWNER_READ
@@ -234,7 +234,7 @@ foreach(SUBDIRS ${SUBDIRECTORIES})
                                 WORLD_EXECUTE WORLD_READ
                                 DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/systemd/system")
                         
-                        # 安装dbus配置目录
+                        # Install dbus configuration directory
                         install(DIRECTORY "${deb_soft_dirs}/usr/share/dbus-1/"  
                                 FILE_PERMISSIONS    
                                 OWNER_EXECUTE OWNER_WRITE OWNER_READ

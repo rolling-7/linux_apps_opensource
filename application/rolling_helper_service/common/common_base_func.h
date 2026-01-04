@@ -237,7 +237,7 @@ typedef struct
 }project_function_table_type;
 
 /*progress*/
-//枚举元素的命名不能随意更改，需要和DISTRIB_ID完全一致
+// The naming of enum elements cannot be changed arbitrarily and must be exactly the same as DISTRIB_ID
 enum CurrentDistibId {
     None = 0,
     Ubuntu,
@@ -245,7 +245,7 @@ enum CurrentDistibId {
     Fedora,
 };
 typedef struct Progress Progress;
-// 父类结构体
+// Parent class structure
 struct Progress {
     int progressWidth; 
     int progressHeight;
@@ -261,22 +261,22 @@ struct Progress {
     char progressCmd[1024];
     char progressCloseCmd[512];
 
-    // 父类方法指针
-    // 获取环境变量
+    // Parent class method pointers
+    // Get environment variable
     int (*rolling_get_progress_environment_variable)(Progress *self);
-    // 执行进度条命令
+    // Execute progress bar command
     int (*rolling_start_progress)(Progress *self);
-    // 更新进度条标题
+    // Update progress bar title
     int (*rolling_set_progress_title)(Progress *self, const char* title);
-    // 初始进度条内容
+    // Initialize progress bar content
     int (*rolling_set_progress_init_text)(Progress *self);
-    // 更新进度条内容
+    // Update progress bar content
     int (*rolling_set_progress_text)(Progress *self, const char* text);
-    // 更新进度条进度
+    // Update progress bar progress
     int (*rolling_set_progress_schedule)(Progress *self, int schedule);
-    // 刷新进度条
+    // Refresh progress bar
     int (*rolling_refresh_progress)(Progress *progress, const char *text, int schedule);
-    // 关闭当前进度条
+    // Close current progress bar
     int (*rolling_close_progress)(Progress *self);
 };
 

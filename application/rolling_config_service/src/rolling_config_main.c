@@ -186,7 +186,7 @@ static gboolean drop_inhibitor(void)
 gboolean timeout_callback(gpointer user_data) {
     ROLLING_LOG_INFO("Timeout reached, releasing sleep inhibition");
     
-    // 释放休眠抑制
+    // Release sleep inhibition
     drop_inhibitor();
     timeout_id = 0;
     return G_SOURCE_REMOVE;

@@ -1,5 +1,5 @@
 #! /bin/bash
-# 获取脚本所在目录，然后切换到项目根目录
+# Get the directory where the script is located, then switch to the project root directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR/.."
 PROJECT_ROOT="$(pwd)"
@@ -7,27 +7,27 @@ build_path="$PROJECT_ROOT"
 project_list=("rw101")
 oem_list=("lenovo" "generic")
 
-# 手动设置build_by_lib参数，1表示使用库编译，0表示正常编译
-# 用户可以直接修改这里的值来控制编译方式
+# Manually set the build_by_lib parameter, 1 means compile using library, 0 means normal compilation
+# Users can directly modify this value to control the compilation method
 build_by_lib=1
 
 function make_project()
 {
     current_path="$PROJECT_ROOT"
-    # 检查是否需要保留binary_deb/common_lib目录
+    # Check if binary_deb/common_lib directory needs to be preserved
     if [ -d "binary_deb" ]; then
         if [ "$build_by_lib" -eq 1 ] && [ -d "binary_deb/common_lib" ]; then
-            # 当build_by_lib为1且common_lib目录存在时，只清除binary_deb中的其他文件，保留common_lib目录
-            echo "build_by_lib为1且common_lib目录存在，保留common_lib目录"
-            # 列出binary_deb中的所有文件和目录，排除common_lib，然后删除
+            # When build_by_lib is 1 and common_lib directory exists, only clear other files in binary_deb, preserve common_lib directory
+            echo "build_by_lib is 1 and common_lib directory exists, preserving common_lib directory"
+            # List all files and directories in binary_deb, exclude common_lib, then delete
             find binary_deb -mindepth 1 -maxdepth 1 -not -name "common_lib" -exec rm -rf {} \;
         else
-            # 其他情况，完全清除binary_deb目录
+            # In other cases, completely clear binary_deb directory
             rm -rf binary_deb
             mkdir ${current_path}/binary_deb
         fi
     else
-        # 如果binary_deb目录不存在，则创建它
+        # If binary_deb directory doesn't exist, create it
         mkdir ${current_path}/binary_deb
     fi
     if [ $# -eq 2 ]; then

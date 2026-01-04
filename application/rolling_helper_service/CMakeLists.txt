@@ -27,7 +27,7 @@ file(GLOB HELPER_DIR "./*")
 foreach(SUBDIRS ${HELPER_DIR})
     get_filename_component(SUBDIR_M ${SUBDIRS} NAME)
     if (${SUBDIR_M} STREQUAL "common")
-        # 只有当build_by_lib为0时，才添加common子目录
+        # Only add common subdirectory when build_by_lib is 0
         if(NOT build_by_lib)
             add_subdirectory(./common)
         endif()
@@ -61,19 +61,19 @@ set(helper_source_files rolling_helper_main.c)
 
 set(build_by_code 1)
 
-# 检查BUILD_BY_LIB参数，将其转换为build_by_lib变量
+# Check BUILD_BY_LIB parameter, convert it to build_by_lib variable
 if(DEFINED BUILD_BY_LIB)
     set(build_by_lib ${BUILD_BY_LIB})
     message(STATUS "BUILD_BY_LIB parameter: ${BUILD_BY_LIB}")
 endif()
 
-# 当BUILD_LIB为yes时，自动设置build_by_code为1
+# When BUILD_LIB is yes, automatically set build_by_code to 1
 if(${BUILD_LIB} STREQUAL "yes")
     set(build_by_code 1)
     message(STATUS "Build lib mode enabled, setting build_by_code=1")
 else()
     message(STATUS "Build exe mode enabled, setting build_by_code=0")
-    # 只有在非BUILD_LIB模式下，当build_by_lib为1时，才设置BUILD_LIB为no
+    # Only in non-BUILD_LIB mode, when build_by_lib is 1, set BUILD_LIB to no
     if(build_by_lib)
         set(build_by_code 0)
         set(BUILD_LIB "no")
@@ -83,7 +83,7 @@ endif()
 
 add_definitions(${HELPER_PREPROCESSOR_DEF})
 
-# 定义通用链接库变量
+# Define common link library variables
 set(HELPER_COMMON_LIBS
     PkgConfig::deps
     LibXml2::LibXml2
@@ -92,22 +92,22 @@ set(HELPER_COMMON_LIBS
     stdc++fs
 )
 
-# 定义通用链接库变量（带safestring）
+# Define common link library variables (with safestring)
 set(HELPER_COMMON_LIBS_WITH_SAFESTRING
     ${PROJECT_BINARY_DIR}/../3rd/safestringlib/libsafestring_static.a
     ${HELPER_COMMON_LIBS}
 )
 
-# 创建链接库的函数，封装重复的链接逻辑
+# Create a function for linking libraries, encapsulating repeated linking logic
 function(helper_link_libraries target_name)
-    # 链接库，传递所有额外参数作为库
+    # Link libraries, passing all additional parameters as libraries
     target_link_libraries(${target_name}
         ${ARGN}
         ${HELPER_COMMON_LIBS_WITH_SAFESTRING}
     )
 endfunction()
 
-# D-Bus 接口生成
+# D-Bus interface generation
 find_program(GDBUSCODEGEN NAMES gdbus-codegen)
 if (NOT GDBUSCODEGEN)
     message(SEND_ERROR "Could not find gdbus-codegen")
@@ -119,51 +119,51 @@ add_custom_command(
     COMMAND ${GDBUSCODEGEN}  --generate-c-code=${CMAKE_CURRENT_BINARY_DIR}/generated/rolling-helper-gdbus-generated --c-namespace=RollingGdbus --interface-prefix com.rolling. ${CMAKE_SOURCE_DIR}/application/dbus/introspection/com.rolling.helper.xml
     )
 
-# 创建一个自定义目标来确保D-Bus接口文件被生成
+# Create a custom target to ensure D-Bus interface files are generated
 add_custom_target(helper_dbus_generated ALL DEPENDS generated/rolling-helper-gdbus-generated.c generated/rolling-helper-gdbus-generated.h)
 
-# 添加生成目录到包含路径
+# Add generated directory to include path
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/generated)
 
-# 根据构建模式决定输出目标
-# 优先检查build_by_lib模式，从预构建静态库生成可执行文件
+# Determine output target based on build mode
+# Prioritize checking build_by_lib mode, generate executable from prebuilt static library
 if(build_by_lib)
-    # 当build_by_lib=1时，跳过源码编译，只从库文件构建
+    # When build_by_lib=1, skip source code compilation, build only from library files
     message(STATUS "STATTUSbuild lib not build exe")
 
-    # 静态库路径指向binary_deb/common_lib目录下的通用库文件
+    # Static library path points to common library files in binary_deb/common_lib directory
     set(STATIC_LIB_PATH "${CMAKE_SOURCE_DIR}/binary_deb/common_lib/libqualcomm_${PROJECT_BUILD}_${OEM_BUILD}_${HELPER_VERSION_STRING}.a")
     message(STATUS "Using static library: ${STATIC_LIB_PATH}")
 
-    # 构建通用可执行文件，使用实际的rolling_helper_main.c文件
+    # Build generic executable, use actual rolling_helper_main.c file
     add_executable(rolling_helper ${CMAKE_CURRENT_SOURCE_DIR}/rolling_helper_main.c)
-    # 链接静态库
+    # Link static library
     helper_link_libraries(rolling_helper "${STATIC_LIB_PATH}" "${CMAKE_SOURCE_DIR}/binary_deb/common_lib/libcode.a")
     message(STATUS "Building generic executable using library: rolling_helper")
-# 然后检查BUILD_LIB模式，构建静态库，但只有当build_by_lib不为1时才执行
+# Then check BUILD_LIB mode, build static library, but only if build_by_lib is not 1
 elseif (BUILD_LIB AND NOT build_by_lib)
-    # 构建静态库模式
+    # Build static library mode
     message(STATUS "Building helper service as static library")
 
-    # 收集所有源文件（包括common目录下的源文件和生成的D-Bus文件）
+    # Collect all source files (including source files under common directory and generated D-Bus files)
     file(GLOB COMMON_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/common/*.c")
-    # 构建静态库时不包含rolling_helper_main.c，它将在生成可执行文件时单独使用
+    # Do not include rolling_helper_main.c when building static library, it will be used separately when generating executable
     set(ALL_SOURCE_FILES 
         ${COMMON_SOURCE_FILES}
         ${CMAKE_CURRENT_BINARY_DIR}/generated/rolling-helper-gdbus-generated.c
     )
 
     add_library(rolling_helper_service_${HELPER_VERSION_STRING} STATIC ${ALL_SOURCE_FILES})
-    # 确保静态库构建依赖于D-Bus生成目标
+    # Ensure static library build depends on D-Bus generation target
     add_dependencies(rolling_helper_service_${HELPER_VERSION_STRING} helper_dbus_generated)
     helper_link_libraries(rolling_helper_service_${HELPER_VERSION_STRING})
 
-# 最后检查常规可执行文件构建模式
+# Finally check regular executable build mode
 elseif(NOT build_by_lib AND NOT BUILD_LIB)
-    # 构建可执行文件模式
+    # Build executable mode
     message(STATUS "Building helper service as executable")
 
-    # 常规构建模式，遍历目录结构
+    # Regular build mode, traverse directory structure
     file(GLOB SUBDIRECTORIES "./*")
     foreach(SUBDIRS ${SUBDIRECTORIES})
         if(IS_DIRECTORY ${SUBDIRS})
@@ -230,8 +230,8 @@ elseif(NOT build_by_lib AND NOT BUILD_LIB)
                                 endif()
                                 message("executable lib: ${SUBDIR_M}_proj_${SUBDIR_N}_${SUBDIR_NAME}")
                                 add_executable(rolling_helper ${helper_source_files})
-                                # 注意：这里不使用helper_link_libraries函数，因为它依赖于common_${SUBDIR_M}_${SUBDIR_N}_${SUBDIR_NAME}，
-                                # 而这个目标是在common/CMakeLists.txt中定义的，不在当前函数的作用域内
+                                # Note: Do not use helper_link_libraries function here, because it depends on common_${SUBDIR_M}_${SUBDIR_N}_${SUBDIR_NAME},
+                                # and this target is defined in common/CMakeLists.txt, not in the current function's scope
                                 target_link_libraries(rolling_helper LibXml2::LibXml2 PkgConfig::deps code 
                                                     common_${SUBDIR_M}_${SUBDIR_N}_${SUBDIR_NAME})
                             endif()

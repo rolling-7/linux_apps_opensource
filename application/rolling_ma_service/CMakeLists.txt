@@ -67,27 +67,27 @@ add_executable(rolling_ma ${source_files})
 target_link_libraries(rolling_ma PkgConfig::deps
 		LibXml2::LibXml2 dbus-1 udev gio-2.0 gobject-2.0 glib-2.0  random varient )
 
-# 设置binary_deb/common_lib输出路径
+# Set binary_deb/common_lib output path
 set(lib_output_path ${CMAKE_SOURCE_DIR}/binary_deb/common_lib)
 
-# 输出构建信息
+# Output build information
 message(STATUS "MA service configured with PROJECT_BUILD: ${PROJECT_BUILD}")
 message(STATUS "MA service configured with OEM_BUILD: ${OEM_BUILD}")
 message(STATUS "MA service lib output path: ${lib_output_path}")
 
-# 创建主目标 - 只负责创建目录
+# Create main target - only responsible for creating directories
 add_custom_target(
     ma_build_lib
-    # 创建输出目录
+    # Create output directory
     COMMAND mkdir -p ${lib_output_path}
     COMMENT "MA service build lib and copy files according to OEM type"
 )
 
-# 添加默认构建依赖，确保在构建rolling_ma后执行复制操作
+# Add default build dependency to ensure copy operation is executed after building rolling_ma
 add_dependencies(ma_build_lib rolling_ma)
 
-# 根据不同OEM构建类型执行不同的复制操作
-# Lenovo OEM 复制操作
+# Execute different copy operations based on different OEM build types
+# Lenovo OEM copy operation
 if(OEM_BUILD STREQUAL "lenovo")
     add_custom_command(
         TARGET ma_build_lib POST_BUILD
@@ -95,7 +95,7 @@ if(OEM_BUILD STREQUAL "lenovo")
         COMMAND cp -raf ${CMAKE_CURRENT_SOURCE_DIR}/libmodemauth.so.1.0 ${lib_output_path}
         VERBATIM
     )
-# Dell OEM 复制操作
+# Dell OEM copy operation
 elseif(OEM_BUILD STREQUAL "dell")
     add_custom_command(
         TARGET ma_build_lib POST_BUILD
@@ -103,7 +103,7 @@ elseif(OEM_BUILD STREQUAL "dell")
         COMMAND cp -raf ${PROJECT_BINARY_DIR}/rolling_ma ${lib_output_path}
         VERBATIM
     )
-# 其他OEM类型
+# Other OEM types
 else()
     add_custom_command(
         TARGET ma_build_lib POST_BUILD
