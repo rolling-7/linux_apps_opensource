@@ -32,7 +32,6 @@ The rolling_flash rolling_config  rolling_helper binaries are both LGPL 2.0, and
 - sudo apt install gcc<br>
 - sudo apt install g++<br>
 - sudo apt install -y rpm<br>
-- sudo apt install 
 
 ## 2. build 
 ### method one: <br>
